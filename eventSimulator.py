@@ -1,6 +1,6 @@
 import simpy
-from event import *
-from peer import *
+from event import EventType, Event
+from peer import NetworkType, CPUType, PeerNode
 
 
 class EventSimulator:

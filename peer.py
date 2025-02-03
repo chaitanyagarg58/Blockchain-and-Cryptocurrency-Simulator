@@ -1,4 +1,6 @@
 from enum import Enum, auto
+from block import Block
+from blockchainTree import BlockchainTree
 
 class NetworkType(Enum):
     SLOW = auto()
@@ -9,14 +11,14 @@ class CPUType(Enum):
     HIGH = auto()
 
 class PeerNode:
-    def __init__(self, peerId: int, netType: NetworkType, cpuType: CPUType, hashingPower: float):
+    def __init__(self, peerId: int, netType: NetworkType, cpuType: CPUType, hashingPower: float, genesisBlock: Block):
         self.peerId = peerId
         self.netType = netType
         self.cpuType = cpuType
         self.hashingPower = hashingPower
         self.connectedPeers = []
-        # self.blockchain
-        self.lastBlkId = 0 # last block id of the current longest chain considered
+        self.lastBlkId = genesisBlock.BlkID # last block id of the current longest chain considered
+        self.blockchain = BlockchainTree(genesisBlock)
 
     def add_connected_peer(self, connetedPeerId):
         self.connectedPeers.append(connetedPeerId)

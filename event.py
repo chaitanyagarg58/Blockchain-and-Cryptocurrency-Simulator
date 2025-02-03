@@ -1,6 +1,6 @@
 from enum import Enum, auto
-from block import *
-from transaction import *
+from block import Block
+from transaction import Transaction
 
 class EventType(Enum):
     BLOCK_GENERATE = auto()

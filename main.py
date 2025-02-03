@@ -1,7 +1,8 @@
 import argparse
 import random
 from network import create_network
-from peer import *
+from peer import PeerNode, NetworkType, CPUType
+from block import Block
 from eventSimulator import run_simulation
 
 
@@ -11,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_peers", type=int, required=True, help="Number of Peers")
     parser.add_argument("--z0", type=float, required=True, help="Percentage of slow peers")
     parser.add_argument("--z1", type=float, required=True, help="Percentage of low CPU peers")
+    parser.add_argument("--transaction_mean_time", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
     parser.add_argument("--sim_time", type=int, required=True, help="Simulation Time (seconds)")
 
     args = parser.parse_args()
@@ -27,7 +29,9 @@ if __name__ == "__main__":
     hashingPowers = [10 if cpuType == CPUType.HIGH else 1 for cpuType in cpuTypes]
     hashingPowers = [hashPower / sum(hashingPowers) for hashPower in hashingPowers]
 
-    peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id]) for id in range(num_peers)]
+    genesis_block = Block(-1, 1, -1, 0)
+
+    peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_peers)]
     Graph = create_network(num_peers)
 
     for u, v in Graph.edges():

@@ -1,10 +1,15 @@
-from transaction import *
+from transaction import Transaction
 
 
 class Block:
-    def __init__(self, blockId, creatorId, size, prevBlockId):
-        self.BlkID = blockId
+    MINING_REWARD = 50
+    BlkCounter = 0
+
+    def __init__(self, creatorId: int, size: int, parentBlockId: int, depth: int):
+        self.BlkID = Block.BlkCounter
+        Block.BlkCounter += 1
         self.creatorID = creatorId
         self.size = size
         self.Txns = None ## Set of Transactions in this block
-        self.prevBlkID = prevBlockId
+        self.parentBlkID = parentBlockId
+        self.depth = depth
