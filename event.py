@@ -10,13 +10,13 @@ class EventType(Enum):
 
 
 class Event:
-    def __init__(self, etype: EventType, timestamp: int, senderPeerId: int, peerId: int):
+    def __init__(self, etype: EventType, timestamp: int, senderPeerId: int, peerId: int, block: Block = None, transaction: Transaction = None):
         self.etype = etype
         self.timestamp = timestamp
         self.senderPeerId = senderPeerId
         self.peerId = peerId
-        self.block = None
-        self.transaction = None
+        self.block = block
+        self.transaction = transaction
 
 
     def __lt__(self, other):

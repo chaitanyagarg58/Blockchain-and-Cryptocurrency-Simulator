@@ -20,6 +20,7 @@ if __name__ == "__main__":
     num_peers = args.num_peers
     z0 = args.z0
     z1 = args.z1
+    transaction_mean_time = args.transaction_mean_time
     sim_time = args.sim_time
 
     netTypes = [NetworkType.SLOW] * int(z0 * num_peers) + [NetworkType.FAST] * (num_peers - int(z0 * num_peers))
