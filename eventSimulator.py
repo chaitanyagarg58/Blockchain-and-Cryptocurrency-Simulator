@@ -41,8 +41,8 @@ class EventSimulator:
     #############################################
     ## BLOCK Generation Starts
     def schedule_block_generation(self, peerId:int):
-        delay = random.expovariate(lambd=self.block_interarrival_time / self.peers[peerId].hashingPower)
-        
+        delay = random.expovariate(lambd= self.peers[peerId].hashingPower / self.block_interarrival_time)
+
         lastBlock = self.peers[peerId].get_lastBlk()
     
         txnList = self.peers[peerId].sample_transactions()
@@ -60,7 +60,7 @@ class EventSimulator:
         # if adding, then create another block gen event and block_prop event to all adjacent nodes
         peerId = event.peerId
         block = event.block
-        
+
         if self.peers[peerId].get_lastBlk().BlkID != block.parentBlkID:
             return
 
@@ -80,7 +80,7 @@ class EventSimulator:
         #### TODO sample using propagation formula given -> Done
         pij = self.peers[senderId].pij[receiverId]
         cij = self.peers[senderId].cij[receiverId]
-        dij = random.expovariate(lambd=96/cij)
+        dij = random.expovariate(lambd=cij/96)
         delay = pij + block.size / cij  + dij
         delay = delay / 1000 ## delay in seconds
 
@@ -110,7 +110,7 @@ class EventSimulator:
     ###############################################
     ## Transaction Generation Starts
     def schedule_transaction_generation(self, peerId: int):
-        delay = random.expovariate(lambd=self.transaction_mean_time)
+        delay = random.expovariate(lambd=1/self.transaction_mean_time)
         event = Event(EventType.TRANSACTION_GENERATE, self.env.now + delay, None, peerId)
         self.env.process(self.schedule_event(event, delay=delay))
 
@@ -141,7 +141,7 @@ class EventSimulator:
         #### TODO sample using propagation formula given -> Done
         pij = self.peers[senderId].pij[receiverId]
         cij = self.peers[senderId].cij[receiverId]
-        dij = random.expovariate(lambd=96/cij)
+        dij = random.expovariate(lambd=cij/96)
         delay = pij + Transaction.size / cij  + dij
         delay = delay / 1000 ## delay in seconds
 
