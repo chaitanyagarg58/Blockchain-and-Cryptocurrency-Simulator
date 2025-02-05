@@ -51,6 +51,7 @@ class PeerNode:
         self.txnPropagationChecker = RepeatChecker()
         # self.blockPropogationChecker = RepeatChecker()
 
+        self.miningBlkId = None
         # self.lastBlkId = genesisBlock.BlkID # last block id of the current longest chain considered
         self.blockchain = BlockchainTree(genesisBlock)
 
@@ -77,11 +78,23 @@ class PeerNode:
 
     def add_block(self, block: Block, arrTime : float):
         self.blockchain.add_block(block, arrTime)
+        longest_changed = True
+        if self.blockchain.prevChainTip == self.blockchain.longestChainTip:
+            longest_changed = False
         lca = self.blockchain.lca()
         insert_set = self.blockchain.get_txn_set(self.blockchain.prevChainTip, lca)
         del_set = self.blockchain.get_txn_set(self.blockchain.longestChainTip, lca)
         self.mempool = self.mempool | insert_set
         self.mempool = self.mempool.difference(del_set)
+        return longest_changed
+
+    def set_miningBlk(self, blkId: int):
+        self.miningBlkId = blkId
+
+    def mining_check(self):
+        if self.miningBlkId is None:
+            return True
+        return self.miningBlkId != self.blockchain.longestChainTip
 
     def get_lastBlk(self):
         return self.blockchain.get_lastBlock()

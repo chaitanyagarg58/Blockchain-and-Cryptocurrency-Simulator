@@ -49,8 +49,9 @@ class EventSimulator:
         parentBlkId = lastBlock.BlkID
         parentBlkBalance = lastBlock.peerBalance
         depth = lastBlock.depth + 1
-        
+
         block = Block(creatorId=peerId, txns=txnList, parentBlockId=parentBlkId, parentBlockBalance=parentBlkBalance, depth=depth)
+        self.peers[peerId].set_miningBlk(parentBlkId)
 
         event = Event(EventType.BLOCK_GENERATE, self.env.now + delay, None, peerId, block=block)
         self.env.process(self.schedule_event(event, delay=delay))
@@ -97,6 +98,8 @@ class EventSimulator:
         block = event.block
 
         self.peers[peerId].add_block(block, self.env.now)
+        if self.peers[peerId].mining_check():
+            self.schedule_block_generation(peerId)
         
         for connectedPeerId in self.peers[peerId].connectedPeers:
             if connectedPeerId == event.senderPeerId:

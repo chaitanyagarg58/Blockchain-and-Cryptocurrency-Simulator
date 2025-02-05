@@ -43,7 +43,7 @@ class BlockchainTree:
     def add_dangling_block(self, block: Block):
         if not self.verify_correctness(block):
             self.recursive_deletion(block.BlkID)
-            return False
+            return
 
         ## Add blockId in self.VerifiedBlocks
         self.VerifiedBlocks.append(block.BlkID)
@@ -67,19 +67,19 @@ class BlockchainTree:
     def add_block(self, block: Block, arrTime: float):
         ## if block seen, return else continue
         if self.check_block(block.BlkID):
-            return False
+            return
         
         self.arrTime[block.BlkID] = arrTime
         self.seenBlocks[block.BlkID] = block
         ## if block parent not seen, add block to dangling blocks and return
         if block.parentBlkID not in self.VerifiedBlocks:
             self.danglingBlocksList[block.parentBlkID].append(block.BlkID)
-            return True
+            return
         
         ## if block not verified, recursive deletion of subtree rooted 
         if not self.verify_correctness(block):
             self.recursive_deletion(block.BlkID)
-            return False
+            return
 
         ## Add blockId in self.VerifiedBlocks
         self.VerifiedBlocks.append(block.BlkID)
@@ -145,7 +145,7 @@ class BlockchainTree:
         if filename is None:
             filename = "graphData.txt"
         with open(filename, "w") as file:
-            file.write(f"BlockId, ParentId, Arrival Time\n")
+            file.write(f"BlockId, ParentId, creatorId, Arrival Time\n")
             for blockId in sortedIDs:
-                file.write(f"{blockId}, {self.seenBlocks[blockId].parentBlkID}, {self.arrTime[blockId]:.2f}\n")
+                file.write(f"{blockId}, {self.seenBlocks[blockId].parentBlkID}, {self.seenBlocks[blockId].creatorID}, {self.arrTime[blockId]:.2f}\n")
         
