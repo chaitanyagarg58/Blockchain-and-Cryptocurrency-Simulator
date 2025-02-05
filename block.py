@@ -19,12 +19,12 @@ class Block:
         self.peerBalance = {peerId: 0 for peerId in Block.peerIds}
         if parentBlockBalance != None:
             self.peerBalance = dict(parentBlockBalance)
+            
+            # coinbase
+            self.peerBalance[self.creatorID] += 50
 
-        # coinbase
-        self.peerBalance[self.creatorID] += 50
-
-        for txn in self.Txns:
-            self.peerBalance[txn.senID] -= txn.amt
-            self.peerBalance[txn.recID] += txn.amt
-        
-        
+            for txn in self.Txns:
+                self.peerBalance[txn.senID] -= txn.amt
+                self.peerBalance[txn.recID] += txn.amt
+            
+            

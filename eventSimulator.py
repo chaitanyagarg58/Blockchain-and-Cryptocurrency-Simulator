@@ -60,7 +60,7 @@ class EventSimulator:
         # if adding, then create another block gen event and block_prop event to all adjacent nodes
         peerId = event.peerId
         block = event.block
-
+        
         if self.peers[peerId].get_lastBlk().BlkID != block.parentBlkID:
             return
 
@@ -70,7 +70,6 @@ class EventSimulator:
             self.schedule_block_propagation(peerId, connectedPeerId, block)
 
         self.schedule_block_generation(peerId)
-        self.env.process(self.schedule_event(Event(), delay=0)) # sample for how to schedule new event
     ## BLOCK Generation Ends
     ##############################################
 
@@ -117,7 +116,7 @@ class EventSimulator:
 
     def process_transaction_generation(self, event: Event):
         peerId = event.peerId
-        currentBalance = self.peers[peerId].get_lastBlk().peerBalance
+        currentBalance = self.peers[peerId].get_lastBlk().peerBalance[peerId]
         if currentBalance <= 0:
             self.schedule_transaction_generation(peerId)
             return

@@ -32,10 +32,10 @@ if __name__ == "__main__":
     hashingPowers = [10 if cpuType == CPUType.HIGH else 1 for cpuType in cpuTypes]
     hashingPowers = [hashPower / sum(hashingPowers) for hashPower in hashingPowers]
 
+    Block.peerIds = list(range(num_peers))
     genesis_block = Block(creatorId=-1, txns=[], parentBlockId=-1, parentBlockBalance=None, depth=0)
 
     peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_peers)]
-    Block.peerIds = list(range(num_peers))
     Graph = create_network(num_peers)
 
     for u, v in Graph.edges():
