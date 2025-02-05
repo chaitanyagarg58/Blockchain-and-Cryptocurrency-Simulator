@@ -4,6 +4,7 @@ from transaction import Transaction
 from blockchainTree import BlockchainTree
 from collections import defaultdict
 import random
+from typing import List
 
 class NetworkType(Enum):
     SLOW = auto()

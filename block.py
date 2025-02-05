@@ -1,12 +1,12 @@
 from transaction import Transaction
-
+from typing import List
 
 class Block:
     MINING_REWARD = 50
     BlkCounter = 0
     peerIds = []
 
-    def __init__(self, creatorId: int, txns: list[Transaction], parentBlockId: int, parentBlockBalance: dict, depth: int):
+    def __init__(self, creatorId: int, txns: List['Transaction'], parentBlockId: int, parentBlockBalance: dict, depth: int):
         self.BlkID = Block.BlkCounter
         Block.BlkCounter += 1
         self.creatorID = creatorId
