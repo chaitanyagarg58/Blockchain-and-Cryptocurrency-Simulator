@@ -140,11 +140,12 @@ class BlockchainTree:
 
 
     ## File printing function
-    def print_tree(self, isFile = 0, filename = None):
+    def print_tree(self, filename = None):
         sortedIDs = sorted(self.arrTime, key = self.arrTime.get)
         if filename is None:
             filename = "graphData.txt"
         with open(filename, "w") as file:
-            for block in sortedIDs:
-                file.write(f"{block} has arrived at time {self.arrTime[block]} with Parent {self.seenBlocks[block].parentBlkID}\n")
+            file.write(f"BlockId, ParentId, Arrival Time\n")
+            for blockId in sortedIDs:
+                file.write(f"{blockId}, {self.seenBlocks[blockId].parentBlkID}, {self.arrTime[blockId]:.2f}\n")
         

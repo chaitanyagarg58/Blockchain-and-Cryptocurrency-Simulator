@@ -5,8 +5,9 @@ from peer import PeerNode, NetworkType, CPUType
 from block import Block
 from eventSimulator import run_simulation
 
-def save_tree(peers, peerId):
-    pass
+def save_tree(peers):
+    for peer in peers:
+        peer.log_tree()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process CLI Inputs.")

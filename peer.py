@@ -90,7 +90,7 @@ class PeerNode:
         currentBalance = self.blockchain.get_lastBlock().peerBalance
         peerSpent = {peerId: 0 for peerId in currentBalance.keys()}
         txns = []
-        
+
         for txn in self.mempool:
             if currentBalance[txn.senID] < peerSpent[txn.senID] + txn.amt:
                 continue
@@ -100,3 +100,6 @@ class PeerNode:
                 break
         return txns
 
+
+    def log_tree(self):
+        self.blockchain.print_tree(filename=f"Peer-{self.peerId}.txt")
