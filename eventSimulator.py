@@ -4,10 +4,11 @@ from peer import NetworkType, CPUType, PeerNode
 from transaction import Transaction
 from block import Block
 import random
+from typing import List
 
 
 class EventSimulator:
-    def __init__(self, env: simpy.Environment, peers: list[PeerNode], block_interarrival_time: float, transaction_mean_time: float):
+    def __init__(self, env: simpy.Environment, peers: List['PeerNode'], block_interarrival_time: float, transaction_mean_time: float):
         self.env = env
         self.peers = peers
         self.block_interarrival_time = block_interarrival_time
