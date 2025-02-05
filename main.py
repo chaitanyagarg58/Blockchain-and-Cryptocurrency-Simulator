@@ -10,11 +10,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process CLI Inputs.")
     
     parser.add_argument("-n", "--num_peers", type=int, required=True, help="Number of Peers")
-    parser.add_argument("--z0", type=float, required=True, help="Percentage of slow peers")
-    parser.add_argument("--z1", type=float, required=True, help="Percentage of low CPU peers")
-    parser.add_argument("--transaction_mean_time", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
-    parser.add_argument("--block_interarrival_time", type=float, required=True, help="Mean Interarrival Time of Blocks (seconds)")
-    parser.add_argument("--sim_time", type=int, required=True, help="Simulation Time (seconds)")
+    parser.add_argument("-w", "--z0", type=float, required=True, help="Percentage of slow peers")
+    parser.add_argument("-c", "--z1", type=float, required=True, help="Percentage of low CPU peers")
+    parser.add_argument("-t", "--transaction_mean_time", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
+    parser.add_argument("-b", "--block_interarrival_time", type=float, required=True, help="Mean Interarrival Time of Blocks (seconds)")
+    parser.add_argument("-s", "--sim_time", type=int, required=True, help="Simulation Time (seconds)")
 
     args = parser.parse_args()
 
