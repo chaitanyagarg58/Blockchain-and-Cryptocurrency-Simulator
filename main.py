@@ -9,7 +9,7 @@ from eventSimulator import run_simulation
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process CLI Inputs.")
     
-    parser.add_argument("--num_peers", type=int, required=True, help="Number of Peers")
+    parser.add_argument("-n", "--num_peers", type=int, required=True, help="Number of Peers")
     parser.add_argument("--z0", type=float, required=True, help="Percentage of slow peers")
     parser.add_argument("--z1", type=float, required=True, help="Percentage of low CPU peers")
     parser.add_argument("--transaction_mean_time", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     hashingPowers = [10 if cpuType == CPUType.HIGH else 1 for cpuType in cpuTypes]
     hashingPowers = [hashPower / sum(hashingPowers) for hashPower in hashingPowers]
 
-    genesis_block = Block(-1, 1, -1, 0)
+    genesis_block = Block(-1, 8, -1, 0) ## size is in Kilobits
 
     peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_peers)]
     Graph = create_network(num_peers)
@@ -38,5 +38,13 @@ if __name__ == "__main__":
     for u, v in Graph.edges():
         peers[u].add_connected_peer(v)
         peers[v].add_connected_peer(u)
+        pij = random.uniform(10, 500)
+        peers[u].add_propogation_link_delay(v, pij)
+        peers[v].add_propogation_link_delay(u, pij)
+        cij = 5
+        if peers[u].netType is NetworkType.FAST and peers[v].netType is NetworkType.FAST:
+            cij = 100
+        peers[u].add_link_speed(v, cij)
+        peers[v].add_link_speed(u, cij)
 
     run_simulation(peers, sim_time)

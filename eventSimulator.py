@@ -32,8 +32,13 @@ class EventSimulator:
 
     def schedule_event(self, event: Event, delay: float):
         yield self.env.timeout(delay)
+        ## TODO : Create a log file code for manual checking
         self.process_event(event)
 
+    #############################################
+    ## BLOCK Generation Starts
+    def schedule_block_generation(self, peerId:int):
+        pass
 
     def process_block_generation(self, event: Event):
         # check last blkid field of peer and then decide to terminate or actually add
@@ -41,10 +46,15 @@ class EventSimulator:
    
         self.env.process(self.schedule_event(Event(), delay=0)) # sample for how to schedule new event
         pass
+    ## BLOCK Generation Ends
+    ##############################################
+
 
     def process_block_propagation(self, event: Event):
         pass
     
+    ###############################################
+    ## Transaction Generation Starts
     def schedule_transaction_generation(self, peerId: int):
         delay = random.expovariate(lambd=self.transaction_mean_time)
         event = Event(EventType.TRANSACTION_GENERATE, self.env.now + delay, None, peerId)
@@ -68,10 +78,18 @@ class EventSimulator:
             self.schedule_transaction_propagation(peerId, connectedPeerId, txn)
 
         self.schedule_transaction_generation(peerId)
+    ## Transaction Generation Ends
+    ################################################
 
-
+    ################################################
+    ## Transaction Propogation Begins
     def schedule_transaction_propagation(self, senderId: int, receiverId: int, txn: Transaction):
-        delay = 0 #### TODO sample using propagation formula given
+        #### TODO sample using propagation formula given -> Done
+        pij = self.peers[senderId].pij[receiverId]
+        cij = self.peers[senderId].cij[receiverId]
+        dij = random.expovariate(lambd=96/cij)
+        delay = pij + Transaction.size / cij  + dij
+        delay = delay / 1000 ## delay in seconds
 
         event = Event(EventType.TRANSACTION_PROPAGATE, self.env.now + delay, senderId, receiverId, transaction=txn)
         self.env.process(self.schedule_event(event, delay=delay))
@@ -92,6 +110,8 @@ class EventSimulator:
             if connectedPeerId == event.senderPeerId:
                 continue
             self.schedule_transaction_propagation(peerId, connectedPeerId, txn)
+    ## Transaction Propogation Ends
+    ############################################
 
 
 

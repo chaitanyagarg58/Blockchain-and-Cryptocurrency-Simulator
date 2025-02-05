@@ -12,7 +12,7 @@ class CPUType(Enum):
     LOW = auto()
     HIGH = auto()
 
-class RepeatTransactionChecker:
+class RepeatChecker:
     def __init__(self):
         self.threshold = 0
         self.seen = set()
@@ -34,6 +34,7 @@ class RepeatTransactionChecker:
             self.updateThreshold()
         return True
 
+
 class PeerNode:
     def __init__(self, peerId: int, netType: NetworkType, cpuType: CPUType, hashingPower: float, genesisBlock: Block):
         self.peerId = peerId
@@ -41,21 +42,37 @@ class PeerNode:
         self.cpuType = cpuType
         self.hashingPower = hashingPower
         self.connectedPeers = []
+        self.pij = {}
+        self.cij = {}
 
         self.mempool = defaultdict(Transaction)
-        self.txnPropagationChecker = RepeatTransactionChecker()
+        self.txnPropagationChecker = RepeatChecker()
+        # self.blockPropogationChecker = RepeatChecker()
 
         self.lastBlkId = genesisBlock.BlkID # last block id of the current longest chain considered
         self.blockchain = BlockchainTree(genesisBlock)
 
         self.currentBalance = 0 # Balance in the chain in the current longest chain according to this Node
 
-    def add_connected_peer(self, connetedPeerId: int):
-        self.connectedPeers.append(connetedPeerId)
+    def add_connected_peer(self, connectedPeerId: int):
+        self.connectedPeers.append(connectedPeerId)
 
     def add_txn_in_mempool(self, txn: Transaction):
         self.mempool[txn.txnID] = txn
         self.txnPropagationChecker.add(txn.txnID)
 
     def transaction_seen(self, txn: Transaction):
-        return self.txnPropagationChecker.check(txn.txnID)        
+        return self.txnPropagationChecker.check(txn.txnID)   
+
+    def add_propogation_link_delay(self, connectedPeerId: int, pij : float):
+        self.pij[connectedPeerId] = pij
+
+    def add_link_speed(self, connectedPeerId : int, cij : float):
+        self.cij[connectedPeerId] = cij
+
+    def add_block(self, block):
+        # if self.blockPropogationChecker.check(block.BlkID):
+        #     return
+        # self.blockPropogationChecker.add(block.BlkID)
+        self.blockchain.add_block(block)
+    
