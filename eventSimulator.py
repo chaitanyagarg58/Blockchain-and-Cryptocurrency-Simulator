@@ -81,7 +81,7 @@ class EventSimulator:
         pij = self.peers[senderId].pij[receiverId]
         cij = self.peers[senderId].cij[receiverId]
         dij = random.expovariate(lambd=96/cij)
-        delay = pij + Transaction.size / cij  + dij
+        delay = pij + block.size / cij  + dij
         delay = delay / 1000 ## delay in seconds
 
         event = Event(EventType.BLOCK_PROPAGATE, self.env.now + delay, senderId, receiverId, block=block)
