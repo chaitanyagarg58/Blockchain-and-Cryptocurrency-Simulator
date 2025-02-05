@@ -88,10 +88,13 @@ class PeerNode:
     
     def sample_transactions(self):
         currentBalance = self.blockchain.get_lastBlock().peerBalance
+        peerSpent = {peerId: 0 for peerId in currentBalance.keys()}
         txns = []
+        
         for txn in self.mempool:
-            if currentBalance[txn.senID] < txn.amt:
+            if currentBalance[txn.senID] < peerSpent[txn.senID] + txn.amt:
                 continue
+            peerSpent[txn.senID] += txn.amt
             txns.append(txn)
             if len(txns) == 999:
                 break

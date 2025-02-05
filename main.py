@@ -5,6 +5,8 @@ from peer import PeerNode, NetworkType, CPUType
 from block import Block
 from eventSimulator import run_simulation
 
+def save_tree(peers, peerId):
+    pass
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process CLI Inputs.")
@@ -51,3 +53,4 @@ if __name__ == "__main__":
         peers[v].add_link_speed(u, cij)
 
     run_simulation(peers, block_interarrival_time, transaction_mean_time, sim_time)
+    save_tree(peers)
