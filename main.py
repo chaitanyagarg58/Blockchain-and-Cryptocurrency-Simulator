@@ -13,6 +13,7 @@ if __name__ == "__main__":
     parser.add_argument("--z0", type=float, required=True, help="Percentage of slow peers")
     parser.add_argument("--z1", type=float, required=True, help="Percentage of low CPU peers")
     parser.add_argument("--transaction_mean_time", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
+    parser.add_argument("--block_interarrival_time", type=float, required=True, help="Mean Interarrival Time of Blocks (seconds)")
     parser.add_argument("--sim_time", type=int, required=True, help="Simulation Time (seconds)")
 
     args = parser.parse_args()
@@ -21,6 +22,7 @@ if __name__ == "__main__":
     z0 = args.z0
     z1 = args.z1
     transaction_mean_time = args.transaction_mean_time
+    block_interarrival_time = args.block_interarrival_time
     sim_time = args.sim_time
 
     netTypes = [NetworkType.SLOW] * int(z0 * num_peers) + [NetworkType.FAST] * (num_peers - int(z0 * num_peers))
@@ -30,9 +32,10 @@ if __name__ == "__main__":
     hashingPowers = [10 if cpuType == CPUType.HIGH else 1 for cpuType in cpuTypes]
     hashingPowers = [hashPower / sum(hashingPowers) for hashPower in hashingPowers]
 
-    genesis_block = Block(-1, 8, -1, 0) ## size is in Kilobits
+    genesis_block = Block(creatorId=-1, txns=[], parentBlockId=-1, parentBlockBalance=None, depth=0)
 
     peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_peers)]
+    Block.peerIds = list(range(num_peers))
     Graph = create_network(num_peers)
 
     for u, v in Graph.edges():
@@ -47,4 +50,4 @@ if __name__ == "__main__":
         peers[u].add_link_speed(v, cij)
         peers[v].add_link_speed(u, cij)
 
-    run_simulation(peers, sim_time)
+    run_simulation(peers, block_interarrival_time, transaction_mean_time, sim_time)

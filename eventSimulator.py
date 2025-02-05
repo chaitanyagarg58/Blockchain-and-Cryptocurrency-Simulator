@@ -2,13 +2,15 @@ import simpy
 from event import EventType, Event
 from peer import NetworkType, CPUType, PeerNode
 from transaction import Transaction
+from block import Block
 import random
 
 
 class EventSimulator:
-    def __init__(self, env: simpy.Environment, peers: list[PeerNode], transaction_mean_time: float):
+    def __init__(self, env: simpy.Environment, peers: list[PeerNode], block_interarrival_time: float, transaction_mean_time: float):
         self.env = env
         self.peers = peers
+        self.block_interarrival_time = block_interarrival_time
         self.transaction_mean_time = transaction_mean_time
 
         self.eventHandler = {}
@@ -19,9 +21,9 @@ class EventSimulator:
 
         for peer in peers:
             self.schedule_transaction_generation(peer.peerId)
+            self.schedule_block_generation(peer.peerId)
 
     def process_event(self, event: Event):
-        # curr_time = self.env.now
         eventType = event.etype
         handler = self.eventHandler.get(event.etype, None)
         if handler:
@@ -38,21 +40,73 @@ class EventSimulator:
     #############################################
     ## BLOCK Generation Starts
     def schedule_block_generation(self, peerId:int):
-        pass
+        delay = random.expovariate(lambd=self.block_interarrival_time / self.peers[peerId].hashingPower)
+        
+        lastBlock = self.peers[peerId].get_lastBlk()
+    
+        txnList = self.peers[peerId].sample_transactions()
+        parentBlkId = lastBlock.BlkID
+        parentBlkBalance = lastBlock.peerBalance
+        depth = lastBlock.depth + 1
+        
+        block = Block(creatorId=peerId, txns=txnList, parentBlockId=parentBlkId, parentBlockBalance=parentBlkBalance, depth=depth)
+
+        event = Event(EventType.BLOCK_GENERATE, self.env.now + delay, None, peerId, block=block)
+        self.env.process(self.schedule_event(event, delay=delay))
 
     def process_block_generation(self, event: Event):
         # check last blkid field of peer and then decide to terminate or actually add
         # if adding, then create another block gen event and block_prop event to all adjacent nodes
-   
+        peerId = event.peerId
+        block = event.block
+
+        if self.peers[peerId].get_lastBlk().BlkID != block.parentBlkID:
+            return
+
+        self.peers[peerId].add_block(block, self.env.now)
+
+        for connectedPeerId in self.peers[peerId].connectedPeers:
+            self.schedule_block_propagation(peerId, connectedPeerId, block)
+
+        self.schedule_block_generation(peerId)
         self.env.process(self.schedule_event(Event(), delay=0)) # sample for how to schedule new event
-        pass
     ## BLOCK Generation Ends
     ##############################################
 
 
+    ###############################################
+    ## BLOCK Propagation Starts
+    def schedule_block_propagation(self, senderId: int, receiverId: int, block: Block):
+        #### TODO sample using propagation formula given -> Done
+        pij = self.peers[senderId].pij[receiverId]
+        cij = self.peers[senderId].cij[receiverId]
+        dij = random.expovariate(lambd=96/cij)
+        delay = pij + Transaction.size / cij  + dij
+        delay = delay / 1000 ## delay in seconds
+
+        event = Event(EventType.BLOCK_PROPAGATE, self.env.now + delay, senderId, receiverId, block=block)
+        self.env.process(self.schedule_event(event, delay=delay))
+
+
     def process_block_propagation(self, event: Event):
-        pass
-    
+        ## Need to verify block here
+        peerId = event.peerId
+        if self.peers[peerId].block_seen(event.block):
+            return
+        
+        block = event.block
+
+        self.peers[peerId].add_block(block, self.env.now)
+        
+        for connectedPeerId in self.peers[peerId].connectedPeers:
+            if connectedPeerId == event.senderPeerId:
+                continue
+            self.schedule_block_propagation(peerId, connectedPeerId, block)
+    ## BLOCK Propagation Ends
+    ##############################################
+
+
+
     ###############################################
     ## Transaction Generation Starts
     def schedule_transaction_generation(self, peerId: int):
@@ -62,7 +116,7 @@ class EventSimulator:
 
     def process_transaction_generation(self, event: Event):
         peerId = event.peerId
-        currentBalance = self.peers[peerId].currentBalance
+        currentBalance = self.peers[peerId].get_lastBlk().peerBalance
         if currentBalance <= 0:
             self.schedule_transaction_generation(peerId)
             return
@@ -115,9 +169,9 @@ class EventSimulator:
 
 
 
-def run_simulation(peers, transaction_mean_time: float, sim_time: int):
+def run_simulation(peers, block_interarrival_time: float, transaction_mean_time: float, sim_time: int):
     env = simpy.Environment()
-    simulator = EventSimulator(env, peers, transaction_mean_time)
+    simulator = EventSimulator(env, peers, block_interarrival_time, transaction_mean_time)
     # event = None
     # env.process(simulator.schedule_event(event, delay=0))
 

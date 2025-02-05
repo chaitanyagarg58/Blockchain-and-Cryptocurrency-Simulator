@@ -3,6 +3,7 @@ from block import Block
 from transaction import Transaction
 from blockchainTree import BlockchainTree
 from collections import defaultdict
+import random
 
 class NetworkType(Enum):
     SLOW = auto()
@@ -45,11 +46,11 @@ class PeerNode:
         self.pij = {}
         self.cij = {}
 
-        self.mempool = defaultdict(Transaction)
+        self.mempool = set()#defaultdict(Transaction)
         self.txnPropagationChecker = RepeatChecker()
         # self.blockPropogationChecker = RepeatChecker()
 
-        self.lastBlkId = genesisBlock.BlkID # last block id of the current longest chain considered
+        # self.lastBlkId = genesisBlock.BlkID # last block id of the current longest chain considered
         self.blockchain = BlockchainTree(genesisBlock)
 
         self.currentBalance = 0 # Balance in the chain in the current longest chain according to this Node
@@ -58,11 +59,14 @@ class PeerNode:
         self.connectedPeers.append(connectedPeerId)
 
     def add_txn_in_mempool(self, txn: Transaction):
-        self.mempool[txn.txnID] = txn
+        self.mempool.add(txn)
         self.txnPropagationChecker.add(txn.txnID)
 
     def transaction_seen(self, txn: Transaction):
-        return self.txnPropagationChecker.check(txn.txnID)   
+        return self.txnPropagationChecker.check(txn.txnID)
+
+    def block_seen(self, block: Block):
+        return self.blockchain.check_block(block.BlkID)
 
     def add_propogation_link_delay(self, connectedPeerId: int, pij : float):
         self.pij[connectedPeerId] = pij
@@ -70,9 +74,25 @@ class PeerNode:
     def add_link_speed(self, connectedPeerId : int, cij : float):
         self.cij[connectedPeerId] = cij
 
-    def add_block(self, block):
-        # if self.blockPropogationChecker.check(block.BlkID):
-        #     return
-        # self.blockPropogationChecker.add(block.BlkID)
-        self.blockchain.add_block(block)
+    def add_block(self, block: Block, arrTime : float):
+        self.blockchain.add_block(block, arrTime)
+        lca = self.blockchain.lca()
+        insert_set = self.blockchain.get_txn_set(self.blockchain.prevChainTip, lca)
+        del_set = self.blockchain.get_txn_set(self.blockchain.longestChainTip, lca)
+        self.mempool = self.mempool | insert_set
+        self.mempool = self.mempool.difference(del_set)
+
+    def get_lastBlk(self):
+        return self.blockchain.get_lastBlock()
     
+    def sample_transactions(self):
+        currentBalance = self.blockchain.get_lastBlock().peerBalance
+        txns = []
+        for txn in self.mempool:
+            if currentBalance[txn.senID] < txn.amt:
+                continue
+            txns.append(txn)
+            if len(txns) == 999:
+                break
+        return txns
+
