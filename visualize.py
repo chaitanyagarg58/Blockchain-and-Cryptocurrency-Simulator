@@ -1,6 +1,7 @@
 from graphviz import Digraph
 import sys
 
+
 def parse_blockchain_file(file_path):
     """Parse the blockchain data file into a dictionary"""
     blocks = {}
@@ -8,13 +9,16 @@ def parse_blockchain_file(file_path):
         lines = f.readlines()[1:]
         for line in lines:
             if line.strip():
-                block_id, parent_id, creator_id, time = map(str.strip, line.split(','))
+                block_id, parent_id, creator_id, time, cpu, net = map(str.strip, line.split(','))
                 blocks[block_id] = {
                     'parent': parent_id if parent_id != 'None' else None,
                     'creator': creator_id,
-                    'time': time
+                    'time': time,
+                    'cpu' : cpu,
+                    'net' : net
                 }
     return blocks
+
 
 def visualize_blockchain(blocks, output_file='blockchain_tree'):
     """Create and render blockchain visualization"""

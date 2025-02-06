@@ -6,6 +6,7 @@ from collections import defaultdict
 import random
 from typing import List
 
+
 class NetworkType(Enum):
     SLOW = auto()
     FAST = auto()
