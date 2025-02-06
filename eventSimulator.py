@@ -4,11 +4,13 @@ from peer import NetworkType, CPUType, PeerNode
 from transaction import Transaction
 from block import Block
 import random
+from tqdm import tqdm
 from typing import List
 
 
 class EventSimulator:
-    def __init__(self, env: simpy.Environment, peers: List['PeerNode'], block_interarrival_time: float, transaction_mean_time: float):
+    def __init__(self, env: simpy.Environment, peers: List['PeerNode'], block_interarrival_time: float, transaction_mean_time: float, sim_time: float):
+        """Initialize the simulator environment"""
         self.env = env
         self.peers = peers
         self.block_interarrival_time = block_interarrival_time
@@ -23,9 +25,17 @@ class EventSimulator:
         for peer in peers:
             self.schedule_transaction_generation(peer.peerId)
             self.schedule_block_generation(peer.peerId)
-        self.cnt = 0
+        
+        self.progress_bar = tqdm(total=sim_time, desc="Simulation Progress", position=0, leave=True)
+        self.last_update = 0
 
     def process_event(self, event: Event):
+        """Process event based on its type"""
+
+        if self.last_update < self.env.now:
+            self.progress_bar.update(self.env.now - self.last_update)
+            self.last_update = self.env.now
+
         eventType = event.etype
         handler = self.eventHandler.get(event.etype, None)
         if handler:
@@ -35,16 +45,15 @@ class EventSimulator:
 
 
     def schedule_event(self, event: Event, delay: float):
+        """Schedule the given event at the given delay"""
         yield self.env.timeout(delay)
-        ## TODO : Create a log file code for manual checking
-        if self.cnt < self.env.now:
-            print(self.env.now)
-            self.cnt += 1
         self.process_event(event)
+
 
     #############################################
     ## BLOCK Generation Starts
     def schedule_block_generation(self, peerId:int):
+        """Schedules the generation of a new block for the given peerId."""
         delay = random.expovariate(lambd= self.peers[peerId].hashingPower / self.block_interarrival_time)
 
         lastBlock = self.peers[peerId].get_lastBlk()
@@ -61,8 +70,12 @@ class EventSimulator:
         self.env.process(self.schedule_event(event, delay=delay))
 
     def process_block_generation(self, event: Event):
-        # check last blkid field of peer and then decide to terminate or actually add
-        # if adding, then create another block gen event and block_prop event to all adjacent nodes
+        """
+        Process the block generation event.
+        
+        If the longest chain has changed since this event was scheduled, this event is terminated. (We would have starting working on another block)
+        Adds the block to the blockchain and propagated to connected peers.
+        """
         peerId = event.peerId
         block = event.block
 
@@ -82,7 +95,7 @@ class EventSimulator:
     ###############################################
     ## BLOCK Propagation Starts
     def schedule_block_propagation(self, senderId: int, receiverId: int, block: Block):
-        #### TODO sample using propagation formula given -> Done
+        """Schedules the propagation of the block from sender to receiver."""
         pij = self.peers[senderId].pij[receiverId]
         cij = self.peers[senderId].cij[receiverId]
         dij = random.expovariate(lambd=cij/96)
@@ -94,7 +107,14 @@ class EventSimulator:
 
 
     def process_block_propagation(self, event: Event):
-        ## Need to verify block here
+        """
+        Processes the block propagation event.
+
+        Checks if the block has been seen before for correct loopless forwarding implementation.
+        Verifies and adds the block to the blockchain.
+        If the longest chain is changed as a consequence of this block, we schedule block generation on the longest chain for this Peer.
+        Propagate this event to connected peer. (Loopless forwarding)
+        """
         peerId = event.peerId
         if self.peers[peerId].block_seen(event.block):
             return
@@ -113,15 +133,20 @@ class EventSimulator:
     ##############################################
 
 
-
     ###############################################
     ## Transaction Generation Starts
     def schedule_transaction_generation(self, peerId: int):
+        """Schedules the generation of a new transaction for the given peerId."""
         delay = random.expovariate(lambd=1/self.transaction_mean_time)
         event = Event(EventType.TRANSACTION_GENERATE, self.env.now + delay, None, peerId)
         self.env.process(self.schedule_event(event, delay=delay))
 
     def process_transaction_generation(self, event: Event):
+        """
+        Process the transaction generation event.
+
+        Creates a valid transaction, adds it to mempool, and propagates to connected peers.
+        """
         peerId = event.peerId
         currentBalance = self.peers[peerId].get_lastBlk().peerBalance[peerId]
         if currentBalance <= 0:
@@ -134,7 +159,6 @@ class EventSimulator:
 
         self.peers[peerId].add_txn_in_mempool(txn)
 
-        ## TODO add event to propagate txn to connected peers -> DONE
         for connectedPeerId in self.peers[peerId].connectedPeers:
             self.schedule_transaction_propagation(peerId, connectedPeerId, txn)
 
@@ -142,10 +166,11 @@ class EventSimulator:
     ## Transaction Generation Ends
     ################################################
 
+
     ################################################
     ## Transaction Propogation Begins
     def schedule_transaction_propagation(self, senderId: int, receiverId: int, txn: Transaction):
-        #### TODO sample using propagation formula given -> Done
+        """Schedules the propagation of the transaction from sender to receiver."""
         pij = self.peers[senderId].pij[receiverId]
         cij = self.peers[senderId].cij[receiverId]
         dij = random.expovariate(lambd=cij/96)
@@ -155,10 +180,15 @@ class EventSimulator:
         event = Event(EventType.TRANSACTION_PROPAGATE, self.env.now + delay, senderId, receiverId, transaction=txn)
         self.env.process(self.schedule_event(event, delay=delay))
 
-    
     def process_transaction_propagation(self, event: Event):
-        ## Do not need to verify transactions here as we might be on some other branch than the creator of transaction
-        ## Will verify transaction only in block creation
+        """
+        Processes the transaction propagation event.
+
+        Checks if the transaction has been seen before for correct loopless forwarding implementation.
+        Transaction is not verified here, as the creator might be not a different branch of the tree (hence have different balance).
+        Transaction is verified while adding to a block.
+        Propagates transaction to connected peers. (Loopless forwarding)
+        """
         peerId = event.peerId
         if self.peers[peerId].transaction_seen(event.transaction):
             return
@@ -176,11 +206,8 @@ class EventSimulator:
 
 
 
-def run_simulation(peers, block_interarrival_time: float, transaction_mean_time: float, sim_time: int):
+def run_simulation(peers, block_interarrival_time: float, transaction_interarrival_time: float, sim_time: float):
     env = simpy.Environment()
-    simulator = EventSimulator(env, peers, block_interarrival_time, transaction_mean_time)
-    # event = None
-    # env.process(simulator.schedule_event(event, delay=0))
+    simulator = EventSimulator(env, peers, block_interarrival_time, transaction_interarrival_time, sim_time)
 
     env.run(until=sim_time)
-    print("Simulation Complete")

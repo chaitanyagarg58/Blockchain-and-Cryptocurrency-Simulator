@@ -4,8 +4,19 @@ import time
 import matplotlib.pyplot as plt
 
 
-def create_network(num_of_nodes, min_degree=3, max_degree=6):
-    # assert num_of_nodes > max_degree
+def create_network(num_of_nodes: int, min_degree: int = 3, max_degree: int = 6) -> ntx.Graph:
+    """
+    Creates a random network with specified node count and degree constraints.
+
+    Args:
+        num_of_nodes (int): Number of nodes in the network.
+        min_degree (int): Minimum degree for each node.
+        max_degree (int): Maximum degree for each node.
+
+    Returns:
+        Graph: A connected random graph with the specified properties.
+    """
+
     if num_of_nodes <= max_degree: 
         max_degree = num_of_nodes - 1
     Graph = None
@@ -15,10 +26,9 @@ def create_network(num_of_nodes, min_degree=3, max_degree=6):
             sample_degrees = [random.randint(min_degree, max_degree) for _ in range(num_of_nodes)]
         
         try:
-            Graph = ntx.random_degree_sequence_graph(sample_degrees, seed = 42, tries = 10) ## Fixed Seed for Deterministic Output
+            Graph = ntx.random_degree_sequence_graph(sample_degrees, seed = 42, tries = 10)     # Fixed Seed for Deterministic Output
         except:
             continue
-        # Graph = ntx.random_degree_sequence_graph(sample_degrees, seed = int(time.time()), tries = 10)
         
         if ntx.is_connected(Graph):
             break
@@ -26,8 +36,6 @@ def create_network(num_of_nodes, min_degree=3, max_degree=6):
             Graph = None
             continue
 
-        # if len(list(ntx.selfloop_edges(Graph))) > 0 or isinstance(Graph, ntx.MultiGraph) or isinstance(Graph, ntx.MultiDiGraph):
-        #     Graph = None
     ntx.draw(Graph, with_labels=True, node_color='lightblue', edge_color='gray')
     plt.savefig("networkGraph.png")
     plt.clf()

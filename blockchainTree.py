@@ -1,10 +1,16 @@
+from transaction import Transaction
 from block import Block
 from collections import defaultdict
-
+from typing import Set
 
 class BlockchainTree:
-
     def __init__(self, genesisBlock: Block):
+        """
+        Initializes the blockchain tree with the genesis block
+
+        Args:
+            genesisBlock (Block): The genesis Block.
+        """
         self.seenBlocks = {genesisBlock.BlkID: genesisBlock}
         self.children = defaultdict(list)
         self.longestChainTip = genesisBlock.BlkID
@@ -14,11 +20,27 @@ class BlockchainTree:
         self.arrTime = {genesisBlock.BlkID : 0}
 
 
-    def check_block(self, blockId: int):
+    def check_block(self, blockId: int) -> bool:
+        """
+        Checks if the block has been received before. (Mainly for loop less forwarding).
+
+        Returns:
+            bool: True if the block is seen/received before, False otherwise.
+        """
         return blockId in self.seenBlocks
     
 
-    def lca(self, blk1 = - 1, blk2 = -1):
+    def lca(self, blk1: int = - 1, blk2: int = -1) -> int:
+        """
+        Finds the Least Common Ancestor (LCA) of the two blocks in the blockchain.
+
+        Args:
+            blk1 (int): The ID of the first block (default is the longest chain tip).
+            blk2 (int): The ID of the second block (default is the previous chain tip).
+        
+        Returns:
+            int: The ID of the lowest common ancestor block.
+        """
         if blk1 == -1:
             blk1 = self.longestChainTip
         if blk2 == -1:
@@ -41,6 +63,12 @@ class BlockchainTree:
     
 
     def add_dangling_block(self, block: Block):
+        """
+        Verifies the correctness of the dangling block and Adds it to the blockchain. (recursively)
+
+        Args:
+            block (Block): The dangling block to add.
+        """
         if not self.verify_correctness(block):
             self.recursive_deletion(block.BlkID)
             return
@@ -48,10 +76,10 @@ class BlockchainTree:
         ## Add blockId in self.VerifiedBlocks
         self.VerifiedBlocks.append(block.BlkID)
 
-        # Add Node to BlockChainTree
+        ## Add Node to BlockChainTree
         self.children[block.parentBlkID].append(block.BlkID)
 
-        ### TODO add code for branch switching->Done
+        ## Switch Longest Chain if applicable
         if self.seenBlocks[self.longestChainTip].depth < block.depth:
             self.longestChainTip = block.BlkID
 
@@ -63,7 +91,14 @@ class BlockchainTree:
 
 
     def add_block(self, block: Block, arrTime: float):
-        ## if block seen, return else continue
+        """
+        Adds a new block to the blockchain tree.
+
+        Args:
+            block (Block): The block to add.
+            arrTime (float): The arrival time of the block.
+        """
+        # if block seen, return else continue
         if self.check_block(block.BlkID):
             return
         
@@ -98,14 +133,28 @@ class BlockchainTree:
             
 
     def recursive_deletion(self, blockId: int):
+        """
+        Recursively deletes dangling blocks (due to parent being invalid).
+
+        Args:
+            blockId (int): The ID of the parent block, whose dangling children are to be deleted
+        """
         if blockId in self.danglingBlocksList:
             for childId in self.danglingBlocksList[blockId]:
                 self.recursive_deletion(childId)
             del self.danglingBlocksList[blockId]
 
 
-    ## Checks the correctness of the block, uses parent block information
-    def verify_correctness(self, block: Block): # May be better to have it in PeerNode
+    def verify_correctness(self, block: Block) -> bool:
+        """
+        Verifies the correctness of a block based on its parent block.
+
+        Args:
+            block (Block): The block to verify.
+        
+        Returns:
+            bool: True if the block is correct, otherwise False.
+        """
         parent =  self.seenBlocks[block.parentBlkID]
         cur_amt = {}
         for txn in block.Txns:
@@ -118,21 +167,33 @@ class BlockchainTree:
         return True
     
     
-    def get_txn_set(self, blkId:int, lcaId:int):
+    def get_txn_set(self, blkId: int, ancestorId: int) -> Set['Transaction']:
+        """
+        Gets the set of transactions from the block (inclusive) to its ancestor (exclusive).
+
+        Args:
+            blkId (int): The ID of the block.
+            ancestorId (int): The ID of ancestor.
+        
+        Returns:
+            Set[Transaction]: The set of transactions.
+        """
         txnSet = set()
         block = self.seenBlocks[blkId]
-        while block.BlkID != lcaId:
+        while block.BlkID != ancestorId:
             txnSet = txnSet | block.Txns
             block = self.seenBlocks[block.parentBlkID]
         return txnSet
     
 
-    def get_lastBlock(self):
+    def get_lastBlock(self) -> Block:
+        """Gets the last block in the longest chain."""
         return self.seenBlocks[self.longestChainTip]
 
 
-    ## File printing function
-    def print_tree(self, filename = None):
+    def print_tree(self, filename: str = None):
+        """Prints the blockchain tree to a file."""
+
         sortedIDs = sorted(self.arrTime, key = self.arrTime.get)
         if filename is None:
             filename = "graphData.txt"
