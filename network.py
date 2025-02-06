@@ -4,7 +4,7 @@ import time
 import matplotlib.pyplot as plt
 
 
-def create_network(num_of_nodes: int, min_degree: int = 3, max_degree: int = 6) -> ntx.Graph:
+def create_network(num_of_nodes: int, folder: str, min_degree: int = 3, max_degree: int = 6) -> ntx.Graph:
     """
     Creates a random network with specified node count and degree constraints.
 
@@ -37,7 +37,7 @@ def create_network(num_of_nodes: int, min_degree: int = 3, max_degree: int = 6) 
             continue
 
     ntx.draw(Graph, with_labels=True, node_color='lightblue', edge_color='gray')
-    plt.savefig("networkGraph.png")
+    plt.savefig(f"{folder}/networkGraph.png")
     plt.clf()
 
     return Graph.copy()

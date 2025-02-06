@@ -197,9 +197,9 @@ class BlockchainTree:
         sortedIDs = sorted(self.arrTime, key = self.arrTime.get)
         if filename is None:
             filename = "graphData.txt"
+        
         with open(filename, "w") as file:
-            file.write(f"BlockId, ParentId, creatorId, Arrival Time\n")
+            file.write(f"BlockId, ParentId, creatorId, Arrival Time, Cpu-Type, Network-Type, Block-Size\n")
             for blockId in sortedIDs:
                 if blockId in self.VerifiedBlocks:
-                    file.write(f"{blockId}, {self.seenBlocks[blockId].parentBlkID}, {self.seenBlocks[blockId].creatorID}, {self.arrTime[blockId]:.2f}\n")
-        
+                    file.write(f"{blockId}, {self.seenBlocks[blockId].parentBlkID}, {self.seenBlocks[blockId].creatorID}, {self.arrTime[blockId]:.2f}, {self.seenBlocks[blockId].cpu}, {self.seenBlocks[blockId].net}, {self.seenBlocks[blockId].size}\n")

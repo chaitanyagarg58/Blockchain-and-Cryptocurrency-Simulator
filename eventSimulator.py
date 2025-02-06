@@ -21,6 +21,14 @@ class EventSimulator:
         self.eventHandler[EventType.BLOCK_PROPAGATE] = self.process_block_propagation
         self.eventHandler[EventType.TRANSACTION_GENERATE] = self.process_transaction_generation
         self.eventHandler[EventType.TRANSACTION_PROPAGATE] = self.process_transaction_propagation
+        self.pij = [[0] * len(peers) for _ in range(len(peers))]
+        self.cij = [[0] * len(peers) for _ in range(len(peers))]
+
+        for p1 in peers:
+            for p2 in p1.pij:
+                self.pij[p1.peerId][p2] = p1.pij[p2]
+            for p2 in p1.cij:
+                self.cij[p1.peerId][p2] = p1.cij[p2]
 
         for peer in peers:
             self.schedule_transaction_generation(peer.peerId)
@@ -63,7 +71,14 @@ class EventSimulator:
         parentBlkBalance = lastBlock.peerBalance
         depth = lastBlock.depth + 1
 
-        block = Block(creatorId=peerId, txns=txnList, parentBlockId=parentBlkId, parentBlockBalance=parentBlkBalance, depth=depth)
+        cpu = 0
+        net = 0
+        if self.peers[peerId].cpuType == CPUType.HIGH:
+            cpu = 1
+        if self.peers[peerId].netType == NetworkType.FAST:
+            net = 1
+
+        block = Block(creatorId=peerId, txns=txnList, parentBlockId=parentBlkId, parentBlockBalance=parentBlkBalance, depth=depth, cpu = cpu, net = net)
         self.peers[peerId].set_miningBlk(parentBlkId)
 
         event = Event(EventType.BLOCK_GENERATE, self.env.now + delay, None, peerId, block=block)
