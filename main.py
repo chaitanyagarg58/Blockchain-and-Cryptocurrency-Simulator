@@ -4,10 +4,11 @@ from network import create_network
 from peer import PeerNode, NetworkType, CPUType
 from block import Block
 from eventSimulator import run_simulation
+import os
 
-def save_tree(peers):
+def save_tree(peers, folder):
     for peer in peers:
-        peer.log_tree()
+        peer.log_tree(folder)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process CLI Inputs.")
@@ -18,8 +19,10 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--transaction_mean_time", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
     parser.add_argument("-b", "--block_interarrival_time", type=float, required=True, help="Mean Interarrival Time of Blocks (seconds)")
     parser.add_argument("-s", "--sim_time", type=int, required=True, help="Simulation Time (seconds)")
-
+    parser.add_argument("-f", "--folder", type = str, required = False, help = "Folder to store results")
     args = parser.parse_args()
+    if args.folder is None:
+        args.folder = "."
 
     num_peers = args.num_peers
     z0 = args.z0
@@ -27,6 +30,7 @@ if __name__ == "__main__":
     transaction_mean_time = args.transaction_mean_time
     block_interarrival_time = args.block_interarrival_time
     sim_time = args.sim_time
+    folder_to_store = args.folder
 
     netTypes = [NetworkType.SLOW] * int(z0 * num_peers) + [NetworkType.FAST] * (num_peers - int(z0 * num_peers))
     random.shuffle(netTypes)
@@ -54,4 +58,5 @@ if __name__ == "__main__":
         peers[v].add_link_speed(u, cij)
 
     run_simulation(peers, block_interarrival_time, transaction_mean_time, sim_time)
-    save_tree(peers)
+    os.makedirs(folder_to_store, exist_ok=True)
+    save_tree(peers, folder_to_store)

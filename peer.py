@@ -114,5 +114,5 @@ class PeerNode:
         return txns
 
 
-    def log_tree(self):
-        self.blockchain.print_tree(filename=f"Peer-{self.peerId}.txt")
+    def log_tree(self, folder):
+        self.blockchain.print_tree(filename=f"{folder}/Peer-{self.peerId}.txt")
