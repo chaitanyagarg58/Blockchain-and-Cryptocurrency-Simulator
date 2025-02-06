@@ -23,6 +23,7 @@ class EventSimulator:
         for peer in peers:
             self.schedule_transaction_generation(peer.peerId)
             self.schedule_block_generation(peer.peerId)
+        self.cnt = 0
 
     def process_event(self, event: Event):
         eventType = event.etype
@@ -36,6 +37,9 @@ class EventSimulator:
     def schedule_event(self, event: Event, delay: float):
         yield self.env.timeout(delay)
         ## TODO : Create a log file code for manual checking
+        if self.cnt < self.env.now:
+            print(self.env.now)
+            self.cnt += 1
         self.process_event(event)
 
     #############################################
