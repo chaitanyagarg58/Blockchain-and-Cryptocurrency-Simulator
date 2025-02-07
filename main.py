@@ -39,7 +39,8 @@ if __name__ == "__main__":
     folder_to_store = args.folder
 
     if folder_to_store is None:
-        folder_to_store = f"{num_peers}_{z0}_{z1}_{transaction_interarrival_time}_{block_interarrival_time}_{sim_time}"
+        folder_to_store = "."
+        # folder_to_store = f"logs_{num_peers}_{z0}_{z1}_{transaction_interarrival_time}_{block_interarrival_time}_{sim_time}"
 
     os.makedirs(folder_to_store, exist_ok=True)
 
@@ -80,7 +81,7 @@ if __name__ == "__main__":
 
     # Log required Information
     with open(f"{folder_to_store}/Node_data.txt", "w") as file:
-        file.write("PeerId,CPUType,NetworkType")
+        file.write("PeerId,CPUType,NetworkType\n")
         for peer in peers:
             cpu = 0
             net = 0
@@ -92,5 +93,5 @@ if __name__ == "__main__":
                 cpu = 0
             else:
                 cpu = 1
-            file.write(f"{peer.peerId},{cpu},{net}")
+            file.write(f"{peer.peerId},{cpu},{net}\n")
     save_tree(peers, folder_to_store)

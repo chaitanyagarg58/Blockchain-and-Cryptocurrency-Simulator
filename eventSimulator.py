@@ -34,13 +34,14 @@ class EventSimulator:
             self.schedule_transaction_generation(peer.peerId)
             self.schedule_block_generation(peer.peerId)
         
-        self.progress_bar = tqdm(total=sim_time, desc="Simulation Progress", position=0, leave=True)
+        self.progress_bar = tqdm(total=sim_time, desc="Simulation Progress", position=0, leave=True, bar_format="{l_bar}{bar} {n:.2f}/{total:.2f} [{elapsed}<{remaining}]")
         self.last_update = 0
+
 
     def process_event(self, event: Event):
         """Process event based on its type"""
 
-        if self.last_update < self.env.now:
+        if self.last_update < self.env.now-1:
             self.progress_bar.update(self.env.now - self.last_update)
             self.last_update = self.env.now
 

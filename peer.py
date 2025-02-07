@@ -173,4 +173,4 @@ class PeerNode:
 
     def log_tree(self, folder: str):
         """Logs the blockchain tree to a file."""
-        self.blockchain.print_tree(filename=f"{folder}/peer_{self.peerId}.txt")
+        self.blockchain.print_tree(filename=f"{folder}/Peer_{self.peerId}.txt")
