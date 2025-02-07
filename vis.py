@@ -214,11 +214,16 @@ def analyze_data_in_longest_chain(G, data, n, filename, peerData = None):
         if not grouped_data[i]:
             grouped_data[i].append(0)
 
-    med_val = 80
+    med_val = 50
     print("Median for Fast/High : ", f"{np.percentile(grouped_data[0], med_val):.2f}")
     print("Median for Slow/High : ", f"{np.percentile(grouped_data[1], med_val):.2f}")
     print("Median for Fast/Low : ", f"{np.percentile(grouped_data[2], med_val):.2f}")
     print("Median for Slow/Low : ", f"{np.percentile(grouped_data[3], med_val):.2f}")
+
+    print("Mean for Fast/High : ", f"{np.mean(grouped_data[0]):.2f}")
+    print("Mean for Slow/High : ", f"{np.mean(grouped_data[1]):.2f}")
+    print("Mean for Fast/Low : ", f"{np.mean(grouped_data[2]):.2f}")
+    print("Mean for Slow/Low : ", f"{np.mean(grouped_data[3]):.2f}")
 
     # print("90th for Fast/High : ", f"{np.percentile(grouped_data[0],90):.2f}")
     # print("90th for Slow/High : ", f"{np.percentile(grouped_data[1],90):.2f}")

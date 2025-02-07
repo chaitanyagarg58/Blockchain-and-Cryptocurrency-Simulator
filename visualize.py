@@ -9,7 +9,7 @@ def parse_blockchain_file(file_path):
         lines = f.readlines()[1:]
         for line in lines:
             if line.strip():
-                block_id, parent_id, creator_id, time, cpu, net = map(str.strip, line.split(','))
+                block_id, parent_id, creator_id, time, cpu, net, sz = map(str.strip, line.split(','))
                 blocks[block_id] = {
                     'parent': parent_id if parent_id != 'None' else None,
                     'creator': creator_id,
