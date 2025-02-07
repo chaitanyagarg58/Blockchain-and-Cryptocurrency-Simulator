@@ -34,7 +34,7 @@ class EventSimulator:
             self.schedule_transaction_generation(peer.peerId)
             self.schedule_block_generation(peer.peerId)
         
-        self.progress_bar = tqdm(total=sim_time, desc="Simulation Progress", position=0, leave=True, bar_format="{l_bar}{bar} {n:.2f}/{total:.2f} [{elapsed}<{remaining}]")
+        self.progress_bar = tqdm(total=sim_time, desc="Simulation Progress", position=0, leave=True)
         self.last_update = 0
 
 
