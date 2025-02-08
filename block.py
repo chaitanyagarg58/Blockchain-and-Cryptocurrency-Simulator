@@ -6,7 +6,7 @@ class Block:
     BlkCounter = 0
     peerIds = []
 
-    def __init__(self, creatorId: int, txns: List['Transaction'], parentBlockId: int, parentBlockBalance: Dict[int, int], depth: int, cpu: int, net: int):
+    def __init__(self, creatorId: int, txns: List['Transaction'], parentBlockId: int, parentBlockBalance: Dict[int, int], depth: int):
         """
         Args:
             creatorId (int): Miner ID.
@@ -25,8 +25,6 @@ class Block:
         self.size = (len(txns) + 1) * 8         # In Kilobits, including coinbase
         self.parentBlkID = parentBlockId
         self.depth = depth
-        self.cpu = cpu
-        self.net = net
 
         ## Balance snapshot after this block (assuming block is valid)
         self.peerBalance = {peerId: 0 for peerId in Block.peerIds}

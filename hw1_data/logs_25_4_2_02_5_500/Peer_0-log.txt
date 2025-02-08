@@ -1,0 +1,11 @@
+Total Number of Blocks Mined : 102
+Length of longest chain :  86
+Number of Forks :  13
+Total high CPU nodes :  84
+Total low CPU nodes :  2
+Total fast net nodes :  51
+Total slow net nodes :  35
+Total High CPU/Fast Nodes :  4.083333333333333
+Total High CPU/Slow Nodes :  4.375
+Total Low CPU/Fast Nodes : 0.6666666666666666
+Total Low CPU/Slow Nodes :  0.0

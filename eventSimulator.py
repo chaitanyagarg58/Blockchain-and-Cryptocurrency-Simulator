@@ -72,14 +72,7 @@ class EventSimulator:
         parentBlkBalance = lastBlock.peerBalance
         depth = lastBlock.depth + 1
 
-        cpu = 0
-        net = 0
-        if self.peers[peerId].cpuType == CPUType.HIGH:
-            cpu = 1
-        if self.peers[peerId].netType == NetworkType.FAST:
-            net = 1
-
-        block = Block(creatorId=peerId, txns=txnList, parentBlockId=parentBlkId, parentBlockBalance=parentBlkBalance, depth=depth, cpu = cpu, net = net)
+        block = Block(creatorId=peerId, txns=txnList, parentBlockId=parentBlkId, parentBlockBalance=parentBlkBalance, depth=depth)
         self.peers[peerId].set_miningBlk(parentBlkId)
 
         event = Event(EventType.BLOCK_GENERATE, self.env.now + delay, None, peerId, block=block)

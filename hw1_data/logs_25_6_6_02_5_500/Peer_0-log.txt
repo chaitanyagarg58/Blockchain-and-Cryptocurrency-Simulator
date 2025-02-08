@@ -1,0 +1,21 @@
+Total Number of Blocks Mined : 95
+Length of longest chain :  84
+Number of Forks :  9
+Total high CPU nodes :  76
+Total low CPU nodes :  8
+Total fast net nodes :  23
+Total slow net nodes :  61
+Total High CPU/Fast Nodes :  7.0
+Total High CPU/Slow Nodes :  7.857142857142857
+Total Low CPU/Fast Nodes : 0.2857142857142857
+Total Low CPU/Slow Nodes :  0.75
+Median for Fast/High :  1.00
+Median for Slow/High :  0.91
+Median for Fast/Low :  0.00
+Median for Slow/Low :  0.58
+Mean for Fast/High :  0.95
+Mean for Slow/High :  0.91
+Mean for Fast/Low :  0.29
+Mean for Slow/Low :  0.52
+9 10
+Number of blockchain nodes per branch : 1.11

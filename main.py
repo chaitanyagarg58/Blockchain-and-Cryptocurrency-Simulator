@@ -1,13 +1,14 @@
 import argparse
 import random
 from network import create_network
+from networkx import Graph as ntxGraph
 from peer import PeerNode, NetworkType, CPUType
 from block import Block
 from eventSimulator import run_simulation
 import os
 from typing import List
 
-def save_tree(peers: List['PeerNode'], folder: str):
+def logger(peers: List['PeerNode'], graph: ntxGraph,  folder: str):
     """
     Saves the blockchain tree of each peer to the specified folder.
     
@@ -15,17 +16,28 @@ def save_tree(peers: List['PeerNode'], folder: str):
         peers (List[PeerNode]): List of PeerNode objects.
         folder (str): Folder path where the trees will be saved.
     """
+    with open(f"{folder}/Node_info.csv", "w") as file:
+        file.write("PeerId, CPU-Type, Network-Type, Hashing-Power\n")
+        for peer in peers:
+            file.write(f"{peer.peerId}, {peer.cpuType.name}, {peer.netType.name}, {peer.hashingPower}\n")
+
+    with open(f"{folder}/networkGraph.csv", "w") as file:
+        file.write("Peer 1, Peer 2, Propagation-Delay, Link-Speed\n")
+        for u, v in graph.edges():
+            file.write(f"{u}, {v}, {peers[u].pij[v]:.2f}, {peers[u].cij[v]}\n")
+
     for peer in peers:
         peer.log_tree(folder)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process CLI Inputs.")
     
     parser.add_argument("-n", "--num_peers", type=int, required=True, help="Number of Peers")
-    parser.add_argument("-w", "--z0", type=float, required=True, help="Percentage of slow peers")
-    parser.add_argument("-c", "--z1", type=float, required=True, help="Percentage of low CPU peers")
-    parser.add_argument("-t", "--transaction_interarrival_time", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
-    parser.add_argument("-b", "--block_interarrival_time", type=float, required=True, help="Mean Interarrival Time of Blocks (seconds)")
+    parser.add_argument("-w", "--z0", type=float, required=True, help="Fraction of slow peers (0 to 1)")
+    parser.add_argument("-c", "--z1", type=float, required=True, help="Fraction of low CPU peers (0 to 1)")
+    parser.add_argument("-t", "--transaction_interarrival", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
+    parser.add_argument("-b", "--block_interarrival", type=float, required=True, help="Mean Interarrival Time of Blocks (seconds)")
     parser.add_argument("-s", "--sim_time", type=float, required=True, help="Simulation Time (seconds)")
     parser.add_argument("-f", "--folder", type = str, required=False, help = "Folder to store results")
     args = parser.parse_args()
@@ -33,14 +45,14 @@ if __name__ == "__main__":
     num_peers = args.num_peers
     z0 = args.z0
     z1 = args.z1
-    transaction_interarrival_time = args.transaction_interarrival_time
-    block_interarrival_time = args.block_interarrival_time
+    transaction_interarrival_time = args.transaction_interarrival
+    block_interarrival_time = args.block_interarrival
     sim_time = args.sim_time
     folder_to_store = args.folder
 
     if folder_to_store is None:
         folder_to_store = "."
-        # folder_to_store = f"logs_{num_peers}_{z0}_{z1}_{transaction_interarrival_time}_{block_interarrival_time}_{sim_time}"
+        folder_to_store = f"logs_{num_peers}_{int(z0 * 100)}_{int(z1 * 100)}_{int(transaction_interarrival_time * 1000)}_{int(block_interarrival_time * 1000)}_{int(sim_time)}"
 
     os.makedirs(folder_to_store, exist_ok=True)
 
@@ -54,7 +66,7 @@ if __name__ == "__main__":
 
     # Initialize Block class peer IDs and create the genesis block
     Block.peerIds = list(range(num_peers))
-    genesis_block = Block(creatorId=-1, txns=[], parentBlockId=-1, parentBlockBalance=None, depth=0, cpu = 1, net = 1)
+    genesis_block = Block(creatorId=-1, txns=[], parentBlockId=-1, parentBlockBalance=None, depth=0)
 
     # Create peers with unique IDs and properties
     peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_peers)]
@@ -80,18 +92,4 @@ if __name__ == "__main__":
     run_simulation(peers, block_interarrival_time, transaction_interarrival_time, sim_time)
 
     # Log required Information
-    with open(f"{folder_to_store}/Node_data.txt", "w") as file:
-        file.write("PeerId,CPUType,NetworkType\n")
-        for peer in peers:
-            cpu = 0
-            net = 0
-            if peer.netType == NetworkType.SLOW:
-                net = 0
-            else:
-                net = 1
-            if peer.cpuType == CPUType.LOW:
-                cpu = 0
-            else:
-                cpu = 1
-            file.write(f"{peer.peerId},{cpu},{net}\n")
-    save_tree(peers, folder_to_store)
+    logger(peers, Graph, folder_to_store)
