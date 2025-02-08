@@ -11,11 +11,16 @@ This project simulates a peer-to-peer (P2P) cryptocurrency network, allowing to 
 
 ## Environment Requirements
 The simulator is built using Python 3.8.10 and relies on the following libraries:
+- **`networkx`**: For network topology creation.
 - **`simpy`**: For discrete-event simulation.
 - **`tqdm`**: For displaying progress bars during simulations.
+- **`matplotlib`**: For Vizualisation.
+
+The library versions needed have been specifies in `requirements.txt` and can be installed using:
 ```
-pip install simpy tqdm
+pip install -r requirements.txt
 ```
+
 ---
 
 ## Usage
