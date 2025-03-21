@@ -18,5 +18,5 @@ class Transaction:
         self.recID = receiverId
         self.amt = amount
 
-
-
+    def __str__(self):
+        return f"TxnID: {self.senID} pays {self.recID} {self.amt} coins"

@@ -157,10 +157,20 @@ class BlockchainTree:
         """
         parent =  self.seenBlocks[block.parentBlkID]
         cur_amt = {}
+
+        verified_coinbase = False
+
         for txn in block.Txns:
+            if txn.senID == -1:
+                if verified_coinbase or txn.amt != Block.miningReward:
+                    return False
+                verified_coinbase = True
+                continue
+            
             if txn.senID not in cur_amt:
                 cur_amt[txn.senID] = 0
             cur_amt[txn.senID] += txn.amt
+
         for sen in cur_amt:
             if cur_amt[sen] > parent.peerBalance[sen]:
                 return False
@@ -183,6 +193,7 @@ class BlockchainTree:
         while block.BlkID != ancestorId:
             txnSet = txnSet | block.Txns
             block = self.seenBlocks[block.parentBlkID]
+        txnSet = {txn for txn in txnSet if txn.senID != -1}
         return txnSet
     
 

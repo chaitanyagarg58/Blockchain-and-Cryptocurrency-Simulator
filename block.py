@@ -22,7 +22,7 @@ class Block:
 
         self.creatorID = creatorId
         self.Txns = set(txns)
-        self.size = (len(txns) + 1) * 8         # In Kilobits, including coinbase
+        self.size = len(txns) * 8         # In Kilobits, including coinbase
         self.parentBlkID = parentBlockId
         self.depth = depth
 
@@ -30,12 +30,10 @@ class Block:
         self.peerBalance = {peerId: 0 for peerId in Block.peerIds}
         if parentBlockBalance != None:
             self.peerBalance = dict(parentBlockBalance)
-            
-            # coinbase
-            self.peerBalance[self.creatorID] += Block.miningReward
 
             for txn in self.Txns:
-                self.peerBalance[txn.senID] -= txn.amt
+                if txn.senID != -1:
+                    self.peerBalance[txn.senID] -= txn.amt
                 self.peerBalance[txn.recID] += txn.amt
             
             

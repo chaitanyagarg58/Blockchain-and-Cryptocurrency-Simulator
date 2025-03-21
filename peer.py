@@ -160,13 +160,14 @@ class PeerNode:
         currentBalance = self.blockchain.get_lastBlock().peerBalance
         peerSpent = {peerId: 0 for peerId in currentBalance.keys()}
         txns = []
+        txns.append(Transaction(-1, self.peerId, Block.miningReward)) # Coinbase
 
         for txn in self.mempool:
             if currentBalance[txn.senID] < peerSpent[txn.senID] + txn.amt:
                 continue
             peerSpent[txn.senID] += txn.amt
             txns.append(txn)
-            if len(txns) == 999:
+            if len(txns) == 1000:
                 break
         return txns
 
