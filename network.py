@@ -4,18 +4,21 @@ import time
 import matplotlib.pyplot as plt
 
 
-def create_network(num_of_nodes: int, folder: str, min_degree: int = 3, max_degree: int = 6) -> ntx.Graph:
+def create_network(num_of_honest: int, num_of_malicious: int, folder: str, min_degree: int = 3, max_degree: int = 6) -> ntx.Graph:
     """
     Creates a random network with specified node count and degree constraints.
 
     Args:
-        num_of_nodes (int): Number of nodes in the network.
+        num_of_honest (int): Number of honest nodes in the network.
+        num_of_malicious (int): Number of malicious nodes in the network.
+        folder (str): Folder path to save the network graph.
         min_degree (int): Minimum degree for each node.
         max_degree (int): Maximum degree for each node.
 
     Returns:
         Graph: A connected random graph with the specified properties.
     """
+    num_of_nodes = num_of_honest + num_of_malicious
 
     if num_of_nodes <= max_degree: 
         max_degree = num_of_nodes - 1
@@ -36,7 +39,8 @@ def create_network(num_of_nodes: int, folder: str, min_degree: int = 3, max_degr
             Graph = None
             continue
 
-    ntx.draw(Graph, with_labels=True, node_color='lightblue', edge_color='gray')
+    node_colors = ['blue' if i < num_of_honest else 'black' for i in range(num_of_nodes)]
+    ntx.draw(Graph, with_labels=True, node_color=node_colors, edge_color='gray', font_color="yellow")
     plt.savefig(f"{folder}/networkGraph.png")
     plt.clf()
 

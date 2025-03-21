@@ -3,6 +3,7 @@ import random
 from network import create_network
 from networkx import Graph as ntxGraph
 from peer import PeerNode, NetworkType, CPUType
+from malicious import MaliciousNode
 from block import Block
 from eventSimulator import run_simulation
 import os
@@ -33,18 +34,21 @@ def logger(peers: List['PeerNode'], graph: ntxGraph,  folder: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process CLI Inputs.")
     
-    parser.add_argument("-n", "--num_peers", type=int, required=True, help="Number of Peers")
-    parser.add_argument("-w", "--z0", type=float, required=True, help="Fraction of slow peers (0 to 1)")
-    parser.add_argument("-c", "--z1", type=float, required=True, help="Fraction of low CPU peers (0 to 1)")
+    parser.add_argument("-n", "--num_honest", type=int, required=True, help="Number of Honest Peers")
+    parser.add_argument("-m", "--num_malicious", type=int, required=True, help="Number of Malicious Peers")
+    # parser.add_argument("-w", "--z0", type=float, required=True, help="Fraction of slow peers (0 to 1)")
+    # parser.add_argument("-c", "--z1", type=float, required=True, help="Fraction of low CPU peers (0 to 1)")
     parser.add_argument("-t", "--transaction_interarrival", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
     parser.add_argument("-b", "--block_interarrival", type=float, required=True, help="Mean Interarrival Time of Blocks (seconds)")
     parser.add_argument("-s", "--sim_time", type=float, required=True, help="Simulation Time (seconds)")
     parser.add_argument("-f", "--folder", type = str, required=False, help = "Folder to store results")
     args = parser.parse_args()
 
-    num_peers = args.num_peers
-    z0 = args.z0
-    z1 = args.z1
+    num_honest = args.num_honest
+    num_malicious = args.num_malicious
+    num_peers = num_honest + num_malicious
+    # z0 = args.z0
+    # z1 = args.z1
     transaction_interarrival_time = args.transaction_interarrival
     block_interarrival_time = args.block_interarrival
     sim_time = args.sim_time
@@ -52,15 +56,14 @@ if __name__ == "__main__":
 
     if folder_to_store is None:
         folder_to_store = "."
-        folder_to_store = f"logs_{num_peers}_{int(z0 * 100)}_{int(z1 * 100)}_{int(transaction_interarrival_time * 1000)}_{int(block_interarrival_time * 1000)}_{int(sim_time)}"
+        folder_to_store = f"logs_{num_honest}_{num_malicious}_{int(transaction_interarrival_time * 1000)}_{int(block_interarrival_time * 1000)}_{int(sim_time)}"
 
     os.makedirs(folder_to_store, exist_ok=True)
 
     # Set network, CPU types and hashing power based on given percentages
-    netTypes = [NetworkType.SLOW] * int(z0 * num_peers) + [NetworkType.FAST] * (num_peers - int(z0 * num_peers))
-    random.shuffle(netTypes)
-    cpuTypes = [CPUType.LOW] * int(z1 * num_peers) + [CPUType.HIGH] * (num_peers - int(z1 * num_peers))
-    random.shuffle(cpuTypes)
+    netTypes = [NetworkType.SLOW] * num_honest + [NetworkType.FAST] * num_malicious
+    cpuTypes = [CPUType.HIGH] * (num_peers)
+
     hashingPowers = [10 if cpuType == CPUType.HIGH else 1 for cpuType in cpuTypes]
     hashingPowers = [hashPower / sum(hashingPowers) for hashPower in hashingPowers]
 
@@ -69,10 +72,14 @@ if __name__ == "__main__":
     genesis_block = Block(creatorId=-1, txns=[], parentBlockId=-1, parentBlockBalance=None, depth=0)
 
     # Create peers with unique IDs and properties
-    peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_peers)]
+    # peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_peers)]
+
+
+    peers = [PeerNode(id, NetworkType.SLOW, cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_honest)] + \
+            [MaliciousNode(id, NetworkType.FAST, cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_honest, num_peers)]
     
     # Generate Network Topology
-    Graph = create_network(num_peers, folder_to_store)
+    Graph = create_network(num_honest, num_malicious, folder_to_store)
 
     # Add network links, propagation delays, and link speeds between connected peers
     for u, v in Graph.edges():
