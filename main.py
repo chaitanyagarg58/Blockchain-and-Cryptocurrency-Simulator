@@ -36,8 +36,6 @@ if __name__ == "__main__":
     
     parser.add_argument("-n", "--num_honest", type=int, required=True, help="Number of Honest Peers")
     parser.add_argument("-m", "--num_malicious", type=int, required=True, help="Number of Malicious Peers")
-    # parser.add_argument("-w", "--z0", type=float, required=True, help="Fraction of slow peers (0 to 1)")
-    # parser.add_argument("-c", "--z1", type=float, required=True, help="Fraction of low CPU peers (0 to 1)")
     parser.add_argument("-t", "--transaction_interarrival", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
     parser.add_argument("-b", "--block_interarrival", type=float, required=True, help="Mean Interarrival Time of Blocks (seconds)")
     parser.add_argument("-s", "--sim_time", type=float, required=True, help="Simulation Time (seconds)")
@@ -47,8 +45,6 @@ if __name__ == "__main__":
     num_honest = args.num_honest
     num_malicious = args.num_malicious
     num_peers = num_honest + num_malicious
-    # z0 = args.z0
-    # z1 = args.z1
     transaction_interarrival_time = args.transaction_interarrival
     block_interarrival_time = args.block_interarrival
     sim_time = args.sim_time
@@ -69,15 +65,13 @@ if __name__ == "__main__":
 
     # Initialize Block class peer IDs and create the genesis block
     Block.peerIds = list(range(num_peers))
-    genesis_block = Block(creatorId=-1, txns=[], parentBlockId=-1, parentBlockBalance=None, depth=0)
+    genesis_block = Block(creatorId=-1, txns=[], parentBlockId="-1", parentBlockBalance=None, depth=0, timestamp=0)
 
     # Create peers with unique IDs and properties
-    # peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_peers)]
-
-
-    peers = [PeerNode(id, NetworkType.SLOW, cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_honest)] + \
-            [MaliciousNode(id, NetworkType.FAST, cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_honest, num_peers)]
-    
+    honest_peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_honest)]
+    malicious_peers = [MaliciousNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_honest, num_peers)]
+    peers = honest_peers + malicious_peers
+            
     # Generate Network Topology
     Graph = create_network(num_honest, num_malicious, folder_to_store)
 

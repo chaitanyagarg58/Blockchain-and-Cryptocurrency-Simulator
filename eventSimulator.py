@@ -41,7 +41,7 @@ class EventSimulator:
     def process_event(self, event: Event):
         """Process event based on its type"""
 
-        if self.last_update < self.env.now-1:
+        if self.last_update < self.env.now:
             self.progress_bar.update(self.env.now - self.last_update)
             self.last_update = self.env.now
 
@@ -61,7 +61,7 @@ class EventSimulator:
 
     #############################################
     ## BLOCK Generation Starts
-    def schedule_block_generation(self, peerId:int):
+    def schedule_block_generation(self, peerId: int):
         """Schedules the generation of a new block for the given peerId."""
         delay = random.expovariate(lambd= self.peers[peerId].hashingPower / self.block_interarrival_time)
 
@@ -72,7 +72,7 @@ class EventSimulator:
         parentBlkBalance = lastBlock.peerBalance
         depth = lastBlock.depth + 1
 
-        block = Block(creatorId=peerId, txns=txnList, parentBlockId=parentBlkId, parentBlockBalance=parentBlkBalance, depth=depth)
+        block = Block(creatorId=peerId, txns=txnList, parentBlockId=parentBlkId, parentBlockBalance=parentBlkBalance, depth=depth, timestamp=self.env.now)
         self.peers[peerId].set_miningBlk(parentBlkId)
 
         event = Event(EventType.BLOCK_GENERATE, self.env.now + delay, None, peerId, block=block)

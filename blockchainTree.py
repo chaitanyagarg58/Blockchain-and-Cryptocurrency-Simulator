@@ -14,13 +14,13 @@ class BlockchainTree:
         self.seenBlocks = {genesisBlock.BlkID: genesisBlock}
         self.children = defaultdict(list)
         self.longestChainTip = genesisBlock.BlkID
-        self.prevChainTip = -1
+        self.prevChainTip = "-1"
         self.danglingBlocksList = defaultdict(list)
         self.VerifiedBlocks = [genesisBlock.BlkID]
         self.arrTime = {genesisBlock.BlkID : 0}
 
 
-    def check_block(self, blockId: int) -> bool:
+    def check_block(self, blockId: str) -> bool:
         """
         Checks if the block has been received before. (Mainly for loop less forwarding).
 
@@ -30,23 +30,23 @@ class BlockchainTree:
         return blockId in self.seenBlocks
     
 
-    def lca(self, blk1: int = - 1, blk2: int = -1) -> int:
+    def lca(self, blk1: str = "-1", blk2: str = "-1") -> str:
         """
         Finds the Least Common Ancestor (LCA) of the two blocks in the blockchain.
 
         Args:
-            blk1 (int): The ID of the first block (default is the longest chain tip).
-            blk2 (int): The ID of the second block (default is the previous chain tip).
+            blk1 (str): The ID of the first block (default is the longest chain tip).
+            blk2 (str): The ID of the second block (default is the previous chain tip).
         
         Returns:
-            int: The ID of the lowest common ancestor block.
+            str: The ID of the lowest common ancestor block.
         """
-        if blk1 == -1:
+        if blk1 == "-1":
             blk1 = self.longestChainTip
-        if blk2 == -1:
+        if blk2 == "-1":
             blk2 = self.prevChainTip
         
-        if self.prevChainTip == -1:
+        if self.prevChainTip == "-1":
             return 0
         
         block1 = self.seenBlocks[blk1]
@@ -132,7 +132,7 @@ class BlockchainTree:
             del self.danglingBlocksList[block.BlkID]
             
 
-    def recursive_deletion(self, blockId: int):
+    def recursive_deletion(self, blockId: str):
         """
         Recursively deletes dangling blocks (due to parent being invalid).
 
@@ -158,15 +158,10 @@ class BlockchainTree:
         parent =  self.seenBlocks[block.parentBlkID]
         cur_amt = {}
 
-        verified_coinbase = False
+        if block.Txns[0].senID != -1 or block.Txns[0].amt != Block.miningReward:
+            return False
 
-        for txn in block.Txns:
-            if txn.senID == -1:
-                if verified_coinbase or txn.amt != Block.miningReward:
-                    return False
-                verified_coinbase = True
-                continue
-            
+        for txn in block.Txns[1:]:
             if txn.senID not in cur_amt:
                 cur_amt[txn.senID] = 0
             cur_amt[txn.senID] += txn.amt
@@ -177,13 +172,13 @@ class BlockchainTree:
         return True
     
     
-    def get_txn_set(self, blkId: int, ancestorId: int) -> Set['Transaction']:
+    def get_txn_set(self, blkId: str, ancestorId: str) -> Set['Transaction']:
         """
         Gets the set of transactions from the block (inclusive) to its ancestor (exclusive).
 
         Args:
-            blkId (int): The ID of the block.
-            ancestorId (int): The ID of ancestor.
+            blkId (str): The ID of the block.
+            ancestorId (str): The ID of ancestor.
         
         Returns:
             Set[Transaction]: The set of transactions.
@@ -191,9 +186,8 @@ class BlockchainTree:
         txnSet = set()
         block = self.seenBlocks[blkId]
         while block.BlkID != ancestorId:
-            txnSet = txnSet | block.Txns
+            txnSet = txnSet | set(block.Txns[1:])
             block = self.seenBlocks[block.parentBlkID]
-        txnSet = {txn for txn in txnSet if txn.senID != -1}
         return txnSet
     
 

@@ -129,7 +129,7 @@ class PeerNode:
         self.mempool = self.mempool.difference(del_set)
         return longest_changed
 
-    def set_miningBlk(self, blkId: int):
+    def set_miningBlk(self, blkId: str):
         """Updates the block ID currently being mined."""
         self.miningBlkId = blkId
 
