@@ -36,7 +36,7 @@ class Block:
 
         # Unique Block Id is set using proper hashing
         self.blockString = f"{self.parentBlkID}|{self.timestamp}|{self.get_merkle_root()}"
-        self.BlkID = sha256(self.blockString.encode()).hexdigest()
+        self.blkId = sha256(self.blockString.encode()).hexdigest()
 
     def get_merkle_root(self) -> str:
         """Returns the Merkle Root of the Transactions in block"""

@@ -2,9 +2,10 @@ from enum import Enum, auto
 from block import Block
 from transaction import Transaction
 from blockchainTree import BlockchainTree
-from collections import defaultdict
+from collections import deque
+from dataclasses import dataclass, field
 import random
-from typing import List
+from typing import List, Deque, Optional
 
 
 class NetworkType(Enum):
@@ -49,6 +50,11 @@ class RepeatChecker:
             self.updateThreshold()
         return True
 
+@dataclass
+class BlockHashMetadata:
+    all_senders: List[int] = field(default_factory=list) # list of all senders (including those who timedout)
+    senders: Deque[int] = field(default_factory=deque)  # Peers who sent this hash
+    timeout_active: bool = False  # Whether a timeout is running
 
 class PeerNode:
     """Represents a Peer/Miner in the blockchain P2P network."""
@@ -76,12 +82,22 @@ class PeerNode:
         self.mempool = set()
         self.txnPropagationChecker = RepeatChecker()    # For loopless forwarding of transactions
 
+        self.receivedHashes: dict[str, BlockHashMetadata] = {} 
+
         self.miningBlkId = None
         self.blockchain = BlockchainTree(genesisBlock)
 
     def add_connected_peer(self, connectedPeerId: int):
         """Add a connected peer."""
         self.connectedPeers.append(connectedPeerId)
+
+    def add_propogation_link_delay(self, connectedPeerId: int, pij : float):
+        """Sets the propagation delay for a connection to a peer."""
+        self.pij[connectedPeerId] = pij
+
+    def add_link_speed(self, connectedPeerId : int, cij : float):
+        """Sets the link speed for a connection to a peer."""
+        self.cij[connectedPeerId] = cij
 
     def add_txn_in_mempool(self, txn: Transaction):
         """Adds a transaction to the mempool and marks it as seen."""
@@ -92,17 +108,45 @@ class PeerNode:
         """Checks if a transaction has been received before."""
         return self.txnPropagationChecker.check(txn.txnID)
 
-    def block_seen(self, block: Block) -> bool:
+    def block_seen(self, blkId: str) -> bool:
         """Checks if a block has been received before."""
-        return self.blockchain.check_block(block.BlkID)
+        return self.blockchain.check_block(blkId)
 
-    def add_propogation_link_delay(self, connectedPeerId: int, pij : float):
-        """Sets the propagation delay for a connection to a peer."""
-        self.pij[connectedPeerId] = pij
+    def add_hash(self, blkId: str, senderId: int) -> bool:
+        """
+        Adds a block hash to the received Hashes.
+        
+        Args:
+            blkId (str): The hash of the block.
+        
+        Returns:
+            bool: True if a new get request (and timeout) should be created for this sender right now, False otherwise.
+        """
+        if blkId not in self.receivedHashes:
+            self.receivedHashes[blkId] = BlockHashMetadata()
 
-    def add_link_speed(self, connectedPeerId : int, cij : float):
-        """Sets the link speed for a connection to a peer."""
-        self.cij[connectedPeerId] = cij
+        self.receivedHashes[blkId].senders.append(senderId)
+        self.receivedHashes[blkId].all_senders.append(senderId)
+        return not self.receivedHashes[blkId].timeout_active
+    
+    def set_active_timeout(self, blkId: str):
+        """Set the timeout for given blkId as active"""
+        self.receivedHashes[blkId].timeout_active = True
+    
+    def get_block_for_get_request(self, blkId: str) -> Optional[Block]:
+        """Returns the block corresponding to given block Id"""
+        return self.blockchain.get_block_from_hash(blkId)
+    
+    def hash_timeout(self, blkId: str) -> Optional[Block]:
+        self.receivedHashes[blkId].senders.popleft()
+        if len(self.receivedHashes[blkId].senders) == 0:
+            self.receivedHashes[blkId].timeout_active = False
+            return None
+
+        return self.receivedHashes[blkId].senders[0]
+
+    def get_all_senders(self, blkId: str) -> List[int]:
+        return self.receivedHashes[blkId].all_senders
 
     def add_block(self, block: Block, arrTime : float) -> bool:
         """
@@ -115,6 +159,7 @@ class PeerNode:
         Returns:
             bool: True if the longest chain changed, False otherwise.
         """
+        self.receivedHashes.pop(block.blkId, None)
 
         self.blockchain.add_block(block, arrTime)
         longest_changed = True

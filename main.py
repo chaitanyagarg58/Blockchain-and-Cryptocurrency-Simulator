@@ -36,6 +36,7 @@ if __name__ == "__main__":
     
     parser.add_argument("-n", "--num_honest", type=int, required=True, help="Number of Honest Peers")
     parser.add_argument("-m", "--num_malicious", type=int, required=True, help="Number of Malicious Peers")
+    parser.add_argument("-o", "--timeout", type=float, required=True, help="Timeout Time (seconds)")
     parser.add_argument("-t", "--transaction_interarrival", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
     parser.add_argument("-b", "--block_interarrival", type=float, required=True, help="Mean Interarrival Time of Blocks (seconds)")
     parser.add_argument("-s", "--sim_time", type=float, required=True, help="Simulation Time (seconds)")
@@ -45,6 +46,7 @@ if __name__ == "__main__":
     num_honest = args.num_honest
     num_malicious = args.num_malicious
     num_peers = num_honest + num_malicious
+    timeout_time = args.timeout
     transaction_interarrival_time = args.transaction_interarrival
     block_interarrival_time = args.block_interarrival
     sim_time = args.sim_time
@@ -52,7 +54,7 @@ if __name__ == "__main__":
 
     if folder_to_store is None:
         folder_to_store = "."
-        folder_to_store = f"logs_{num_honest}_{num_malicious}_{int(transaction_interarrival_time * 1000)}_{int(block_interarrival_time * 1000)}_{int(sim_time)}"
+        folder_to_store = f"logs_{num_honest}_{num_malicious}_{timeout_time}_{int(transaction_interarrival_time * 1000)}_{int(block_interarrival_time * 1000)}_{int(sim_time)}"
 
     os.makedirs(folder_to_store, exist_ok=True)
 
@@ -90,7 +92,7 @@ if __name__ == "__main__":
     
 
     # Run the simulation with the provided parameters
-    run_simulation(peers, block_interarrival_time, transaction_interarrival_time, sim_time)
+    run_simulation(peers, block_interarrival_time, transaction_interarrival_time, timeout_time, sim_time)
 
     # Log required Information
     logger(peers, Graph, folder_to_store)

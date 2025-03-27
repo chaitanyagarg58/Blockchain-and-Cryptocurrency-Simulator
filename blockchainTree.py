@@ -11,13 +11,13 @@ class BlockchainTree:
         Args:
             genesisBlock (Block): The genesis Block.
         """
-        self.seenBlocks = {genesisBlock.BlkID: genesisBlock}
+        self.seenBlocks = {genesisBlock.blkId: genesisBlock}
         self.children = defaultdict(list)
-        self.longestChainTip = genesisBlock.BlkID
+        self.longestChainTip = genesisBlock.blkId
         self.prevChainTip = "-1"
         self.danglingBlocksList = defaultdict(list)
-        self.VerifiedBlocks = [genesisBlock.BlkID]
-        self.arrTime = {genesisBlock.BlkID : 0}
+        self.VerifiedBlocks = [genesisBlock.blkId]
+        self.arrTime = {genesisBlock.blkId : 0}
 
 
     def check_block(self, blockId: str) -> bool:
@@ -56,10 +56,10 @@ class BlockchainTree:
             block2 = self.seenBlocks[block2.parentBlkID]
         while block1.depth > block2.depth:
             block1 = self.seenBlocks[block1.parentBlkID]
-        while block1.BlkID != block2.BlkID:
+        while block1.blkId != block2.blkId:
             block2 = self.seenBlocks[block2.parentBlkID]
             block1 = self.seenBlocks[block1.parentBlkID]
-        return block1.BlkID
+        return block1.blkId
     
 
     def add_dangling_block(self, block: Block):
@@ -70,24 +70,24 @@ class BlockchainTree:
             block (Block): The dangling block to add.
         """
         if not self.verify_correctness(block):
-            self.recursive_deletion(block.BlkID)
+            self.recursive_deletion(block.blkId)
             return
 
         ## Add blockId in self.VerifiedBlocks
-        self.VerifiedBlocks.append(block.BlkID)
+        self.VerifiedBlocks.append(block.blkId)
 
         ## Add Node to BlockChainTree
-        self.children[block.parentBlkID].append(block.BlkID)
+        self.children[block.parentBlkID].append(block.blkId)
 
         ## Switch Longest Chain if applicable
         if self.seenBlocks[self.longestChainTip].depth < block.depth:
-            self.longestChainTip = block.BlkID
+            self.longestChainTip = block.blkId
 
         ## Recursive addition of Dangling Blocks
-        if block.BlkID in self.danglingBlocksList:
-            for childId in self.danglingBlocksList[block.BlkID]:
+        if block.blkId in self.danglingBlocksList:
+            for childId in self.danglingBlocksList[block.blkId]:
                 self.add_dangling_block(self.seenBlocks[childId])
-            del self.danglingBlocksList[block.BlkID]
+            del self.danglingBlocksList[block.blkId]
 
 
     def add_block(self, block: Block, arrTime: float):
@@ -99,37 +99,37 @@ class BlockchainTree:
             arrTime (float): The arrival time of the block.
         """
         # if block seen, return else continue
-        if self.check_block(block.BlkID):
+        if self.check_block(block.blkId):
             return
         
-        self.arrTime[block.BlkID] = arrTime
-        self.seenBlocks[block.BlkID] = block
+        self.arrTime[block.blkId] = arrTime
+        self.seenBlocks[block.blkId] = block
         ## if block parent not seen, add block to dangling blocks and return
         if block.parentBlkID not in self.VerifiedBlocks:
-            self.danglingBlocksList[block.parentBlkID].append(block.BlkID)
+            self.danglingBlocksList[block.parentBlkID].append(block.blkId)
             return
         
         ## if block not verified, recursive deletion of subtree rooted 
         if not self.verify_correctness(block):
-            self.recursive_deletion(block.BlkID)
+            self.recursive_deletion(block.blkId)
             return
 
         ## Add blockId in self.VerifiedBlocks
-        self.VerifiedBlocks.append(block.BlkID)
+        self.VerifiedBlocks.append(block.blkId)
 
         # Add Node to BlockChainTree
-        self.children[block.parentBlkID].append(block.BlkID)
+        self.children[block.parentBlkID].append(block.blkId)
 
         ### TODO add code for branch switching->Done
         self.prevChainTip = self.longestChainTip
         if self.seenBlocks[self.longestChainTip].depth < block.depth:
-            self.longestChainTip = block.BlkID
+            self.longestChainTip = block.blkId
 
         ## Recursive addition of Dangling Blocks
-        if block.BlkID in self.danglingBlocksList:
-            for childId in self.danglingBlocksList[block.BlkID]:
+        if block.blkId in self.danglingBlocksList:
+            for childId in self.danglingBlocksList[block.blkId]:
                 self.add_dangling_block(self.seenBlocks[childId])
-            del self.danglingBlocksList[block.BlkID]
+            del self.danglingBlocksList[block.blkId]
             
 
     def recursive_deletion(self, blockId: str):
@@ -185,7 +185,7 @@ class BlockchainTree:
         """
         txnSet = set()
         block = self.seenBlocks[blkId]
-        while block.BlkID != ancestorId:
+        while block.blkId != ancestorId:
             txnSet = txnSet | set(block.Txns[1:])
             block = self.seenBlocks[block.parentBlkID]
         return txnSet
@@ -194,7 +194,10 @@ class BlockchainTree:
     def get_lastBlock(self) -> Block:
         """Gets the last block in the longest chain."""
         return self.seenBlocks[self.longestChainTip]
-
+    
+    def get_block_from_hash(self, blkId: str) -> Block:
+        """Gets the block with the given block Id."""
+        return self.seenBlocks[blkId]
 
     def print_tree(self, filename: str):
         """Prints the blockchain tree to a file."""

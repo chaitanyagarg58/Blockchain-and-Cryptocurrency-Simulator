@@ -9,16 +9,20 @@ from typing import List
 
 
 class EventSimulator:
-    def __init__(self, env: simpy.Environment, peers: List['PeerNode'], block_interarrival_time: float, transaction_mean_time: float, sim_time: float):
+    def __init__(self, env: simpy.Environment, peers: List['PeerNode'], block_interarrival_time: float, transaction_mean_time: float, timeout_time: float, sim_time: float):
         """Initialize the simulator environment"""
         self.env = env
         self.peers = peers
         self.block_interarrival_time = block_interarrival_time
         self.transaction_mean_time = transaction_mean_time
+        self.timeout_time = timeout_time
 
         self.eventHandler = {}
         self.eventHandler[EventType.BLOCK_GENERATE] = self.process_block_generation
         self.eventHandler[EventType.BLOCK_PROPAGATE] = self.process_block_propagation
+        self.eventHandler[EventType.HASH_PROPAGATE] = self.process_hash_propagation
+        self.eventHandler[EventType.GET_REQUEST] = self.process_get_request
+        self.eventHandler[EventType.TIMEOUT_EVENT] = self.process_timeout_event
         self.eventHandler[EventType.TRANSACTION_GENERATE] = self.process_transaction_generation
         self.eventHandler[EventType.TRANSACTION_PROPAGATE] = self.process_transaction_propagation
         self.pij = [[0] * len(peers) for _ in range(len(peers))]
@@ -68,7 +72,7 @@ class EventSimulator:
         lastBlock = self.peers[peerId].get_lastBlk()
     
         txnList = self.peers[peerId].sample_transactions()
-        parentBlkId = lastBlock.BlkID
+        parentBlkId = lastBlock.blkId
         parentBlkBalance = lastBlock.peerBalance
         depth = lastBlock.depth + 1
 
@@ -88,16 +92,82 @@ class EventSimulator:
         peerId = event.peerId
         block = event.block
 
-        if self.peers[peerId].get_lastBlk().BlkID != block.parentBlkID:
+        if self.peers[peerId].get_lastBlk().blkId != block.parentBlkID:
             return
 
         self.peers[peerId].add_block(block, self.env.now)
 
         for connectedPeerId in self.peers[peerId].connectedPeers:
-            self.schedule_block_propagation(peerId, connectedPeerId, block)
+            self.schedule_hash_propagation(peerId, connectedPeerId, block.blkId)
 
         self.schedule_block_generation(peerId)
     ## BLOCK Generation Ends
+    ##############################################
+
+
+    ###############################################
+    ## HASH Propagation Starts
+    def schedule_hash_propagation(self, senderId: int, receiverId: int, blkId: str):
+        """Schedules the propagation of the block hash from sender to receiver."""
+        pij = self.peers[senderId].pij[receiverId]
+        cij = self.peers[senderId].cij[receiverId]
+        dij = random.expovariate(lambd=cij/96)
+        delay = pij + Block.hashSize / cij  + dij
+        delay = delay / 1000 ## delay in seconds
+
+        event = Event(EventType.HASH_PROPAGATE, self.env.now + delay, senderId, receiverId, blkId=blkId)
+        self.env.process(self.schedule_event(event, delay=delay))
+
+    def process_hash_propagation(self, event: Event):
+        peerId = event.peerId
+        if self.peers[peerId].block_seen(event.blkId):
+            return
+        
+        if self.peers[peerId].add_hash(event.blkId, event.senderPeerId):
+            self.schedule_get_request(peerId, event.senderPeerId, event.blkId)
+    ## HASH Propagation Ends
+    ##############################################
+
+
+    ###############################################
+    ## GET Propagation Starts
+    def schedule_get_request(self, senderId: int, receiverId: int, blkId: str):
+        """Schedules the get request for the block hash from sender to receiver."""
+        pij = self.peers[senderId].pij[receiverId]
+        cij = self.peers[senderId].cij[receiverId]
+        dij = random.expovariate(lambd=cij/96)
+        delay = pij + Block.hashSize / cij  + dij ## Size considered same as hash size
+        delay = delay / 1000 ## delay in seconds
+
+        event = Event(EventType.GET_REQUEST, self.env.now + delay, senderId, receiverId, blkId=blkId)
+        self.env.process(self.schedule_event(event, delay=delay))
+        self.schedule_timeout_event(senderId, blkId)
+
+    def process_get_request(self, event: Event):
+        peerId = event.peerId
+        block = self.peers[peerId].get_block_for_get_request(event.blkId)
+        if block is not None:
+            self.schedule_block_propagation(peerId, event.senderPeerId, block)
+    ## GET Propagation Ends
+    ##############################################
+
+
+    ###############################################
+    ## TIMEOUT Event Starts
+    def schedule_timeout_event(self, peerId: int, blkId: str):
+        """Schedules the timeout event of the block hash for peerId."""
+        event = Event(EventType.TIMEOUT_EVENT, self.env.now + self.timeout_time, None, peerId, blkId=blkId)
+        self.env.process(self.schedule_event(event, delay=self.timeout_time))
+        self.peers[peerId].set_active_timeout(blkId)
+
+    def process_timeout_event(self, event: Event):
+        peerId = event.peerId
+        if self.peers[peerId].block_seen(event.blkId):
+            return
+        nextPeerId = self.peers[peerId].hash_timeout(event.blkId)
+        if nextPeerId is not None:
+            self.schedule_timeout_event(peerId, event.blkId)
+    ## TIMEOUT Event Ends
     ##############################################
 
 
@@ -129,15 +199,16 @@ class EventSimulator:
             return
         
         block = event.block
+        senderPeerIds = self.peers[peerId].get_all_senders(block.blkId)
 
         self.peers[peerId].add_block(block, self.env.now)
         if self.peers[peerId].mining_check():
             self.schedule_block_generation(peerId)
         
         for connectedPeerId in self.peers[peerId].connectedPeers:
-            if connectedPeerId == event.senderPeerId:
+            if connectedPeerId in senderPeerIds:
                 continue
-            self.schedule_block_propagation(peerId, connectedPeerId, block)
+            self.schedule_hash_propagation(peerId, connectedPeerId, block.blkId)
     ## BLOCK Propagation Ends
     ##############################################
 
@@ -215,8 +286,8 @@ class EventSimulator:
 
 
 
-def run_simulation(peers, block_interarrival_time: float, transaction_interarrival_time: float, sim_time: float):
+def run_simulation(peers, block_interarrival_time: float, transaction_interarrival_time: float, timeout_time: float, sim_time: float):
     env = simpy.Environment()
-    simulator = EventSimulator(env, peers, block_interarrival_time, transaction_interarrival_time, sim_time)
+    simulator = EventSimulator(env, peers, block_interarrival_time, transaction_interarrival_time, timeout_time, sim_time)
 
     env.run(until=sim_time)
