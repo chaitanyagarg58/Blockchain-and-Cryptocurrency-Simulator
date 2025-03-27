@@ -5,7 +5,7 @@ from blockchainTree import BlockchainTree
 from collections import deque
 from dataclasses import dataclass, field
 import random
-from typing import List, Deque, Optional
+from typing import List, Deque, Tuple, Optional
 
 
 class NetworkType(Enum):
@@ -133,7 +133,7 @@ class PeerNode:
         """Set the timeout for given blkId as active"""
         self.receivedHashes[blkId].timeout_active = True
     
-    def get_block_for_get_request(self, blkId: str) -> Optional[Block]:
+    def get_block_for_get_request(self, channel: int, blkId: str) -> Optional[Block]:
         """Returns the block corresponding to given block Id"""
         return self.blockchain.get_block_from_hash(blkId)
     
@@ -147,6 +147,12 @@ class PeerNode:
 
     def get_all_senders(self, blkId: str) -> List[int]:
         return self.receivedHashes[blkId].all_senders
+    
+    def get_connected_list(self, creatorId: int) -> List[Tuple[int, int]]:
+        return [(connectedPeerId, 1) for connectedPeerId in self.connectedPeers]
+    
+    def get_channel_details(self, connectedPeerId: int, channel: int) -> Tuple[int, int]:
+        return self.pij[connectedPeerId], self.cij[connectedPeerId]
 
     def add_block(self, block: Block, arrTime : float) -> bool:
         """

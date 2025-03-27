@@ -3,18 +3,20 @@ import random
 from network import create_network
 from networkx import Graph as ntxGraph
 from peer import PeerNode, NetworkType, CPUType
-from malicious import MaliciousNode
+from malicious import MaliciousNode, RingMasterNode
 from block import Block
 from eventSimulator import run_simulation
 import os
 from typing import List, Union
 
-def logger(peers: List[Union[PeerNode, MaliciousNode]], graph: ntxGraph,  folder: str):
+def logger(peers: List[Union[PeerNode, MaliciousNode]], graph: ntxGraph, overlay_graph: ntxGraph, folder: str):
     """
     Saves the blockchain tree of each peer to the specified folder.
     
     Args:
         peers (List[Union[PeerNode, MaliciousNode]]): List of PeerNode/MaliciousNode objects.
+        graph (ntxGraph): Network Topology Graph
+        overlay_graph (ntxGraph): Overlay Network Topology Graph
         folder (str): Folder path where the trees will be saved.
     """
     with open(f"{folder}/Node_info.csv", "w") as file:
@@ -26,6 +28,11 @@ def logger(peers: List[Union[PeerNode, MaliciousNode]], graph: ntxGraph,  folder
         file.write("Peer 1, Peer 2, Propagation-Delay, Link-Speed\n")
         for u, v in graph.edges():
             file.write(f"{u}, {v}, {peers[u].pij[v]:.2f}, {peers[u].cij[v]}\n")
+
+    with open(f"{folder}/overlayGraph.csv", "w") as file:
+        file.write("Peer 1, Peer 2, Propagation-Delay, Link-Speed\n")
+        for u, v in overlay_graph.edges():
+            file.write(f"{u}, {v}, {peers[u].overlay_pij[v]:.2f}, {peers[u].overlay_cij[v]}\n")
 
     for peer in peers:
         peer.log_tree(folder)
@@ -40,7 +47,8 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--transaction_interarrival", type=float, required=True, help="Mean Interarrival Time for Transaction Generation (seconds)")
     parser.add_argument("-b", "--block_interarrival", type=float, required=True, help="Mean Interarrival Time of Blocks (seconds)")
     parser.add_argument("-s", "--sim_time", type=float, required=True, help="Simulation Time (seconds)")
-    parser.add_argument("-f", "--folder", type = str, required=False, help = "Folder to store results")
+    parser.add_argument("-f", "--folder", type = str, required=False, help="Folder to store results")
+    parser.add_argument("-r", "--remove_eclipse", action="store_true", help="Remove Eclipse Attack from Malicous Nodes (only selfish mining)")
     args = parser.parse_args()
 
     num_honest = args.num_honest
@@ -59,7 +67,7 @@ if __name__ == "__main__":
     os.makedirs(folder_to_store, exist_ok=True)
 
     # Set network, CPU types and hashing power based on given percentages
-    netTypes = [NetworkType.SLOW] * num_honest + [NetworkType.FAST] * num_malicious
+    netTypes =  [NetworkType.FAST] * num_malicious + [NetworkType.SLOW] * num_honest
     cpuTypes = [CPUType.HIGH] * (num_peers)
 
     hashingPowers = [10 if cpuType == CPUType.HIGH else 1 for cpuType in cpuTypes]
@@ -70,12 +78,15 @@ if __name__ == "__main__":
     genesis_block = Block(creatorId=-1, txns=[], parentBlockId="-1", parentBlockBalance=None, depth=0, timestamp=0)
 
     # Create peers with unique IDs and properties
-    honest_peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_honest)]
-    malicious_peers = [MaliciousNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_honest, num_peers)]
-    peers = honest_peers + malicious_peers
-            
-    # Generate Network Topology
-    Graph = create_network(num_honest, num_malicious, folder_to_store)
+    malicious_peers =  [RingMasterNode(0, netTypes[0], cpuTypes[0], sum(hashingPowers[:num_malicious]), genesis_block)] + \
+                    [MaliciousNode(id, netTypes[id], cpuTypes[id], 0, genesis_block) for id in range(1, num_malicious)]
+    honest_peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_malicious, num_peers)]
+    peers = malicious_peers + honest_peers
+
+    MaliciousNode.RingmasterId = 0
+
+    # Generate Public Network Topology
+    Graph = create_network(num_malicious, num_honest, f"{folder_to_store}/networkGraph.png")
 
     # Add network links, propagation delays, and link speeds between connected peers
     for u, v in Graph.edges():
@@ -91,8 +102,21 @@ if __name__ == "__main__":
         peers[v].add_link_speed(u, cij)
     
 
+    # Overlay Network Topology
+    Overlay_Graph = create_network(num_malicious, 0, f"{folder_to_store}/overlayGraph.png")
+    
+    for u, v in Overlay_Graph.edges():
+        peers[u].add_overlay_connected_peer(v)
+        peers[v].add_overlay_connected_peer(u)
+        pij = random.uniform(1, 10)
+        peers[u].add_overlay_propogation_link_delay(v, pij)
+        peers[v].add_overlay_propogation_link_delay(u, pij)
+        cij = 100
+        peers[u].add_overlay_link_speed(v, cij)
+        peers[v].add_overlay_link_speed(u, cij)
+
     # Run the simulation with the provided parameters
     run_simulation(peers, block_interarrival_time, transaction_interarrival_time, timeout_time, sim_time)
 
     # Log required Information
-    logger(peers, Graph, folder_to_store)
+    logger(peers, Graph, Overlay_Graph, folder_to_store)

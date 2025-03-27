@@ -67,6 +67,8 @@ class EventSimulator:
     ## BLOCK Generation Starts
     def schedule_block_generation(self, peerId: int):
         """Schedules the generation of a new block for the given peerId."""
+        if self.peers[peerId].hashingPower == 0:
+            return
         delay = random.expovariate(lambd= self.peers[peerId].hashingPower / self.block_interarrival_time)
 
         lastBlock = self.peers[peerId].get_lastBlk()
@@ -79,7 +81,7 @@ class EventSimulator:
         block = Block(creatorId=peerId, txns=txnList, parentBlockId=parentBlkId, parentBlockBalance=parentBlkBalance, depth=depth, timestamp=self.env.now)
         self.peers[peerId].set_miningBlk(parentBlkId)
 
-        event = Event(EventType.BLOCK_GENERATE, self.env.now + delay, None, peerId, block=block)
+        event = Event(EventType.BLOCK_GENERATE, None, self.env.now + delay, None, peerId, block=block)
         self.env.process(self.schedule_event(event, delay=delay))
 
     def process_block_generation(self, event: Event):
@@ -97,8 +99,8 @@ class EventSimulator:
 
         self.peers[peerId].add_block(block, self.env.now)
 
-        for connectedPeerId in self.peers[peerId].connectedPeers:
-            self.schedule_hash_propagation(peerId, connectedPeerId, block.blkId)
+        for connectedPeerId, channel in self.peers[peerId].get_connected_list(block.creatorID):
+            self.schedule_hash_propagation(channel, peerId, connectedPeerId, block.blkId)
 
         self.schedule_block_generation(peerId)
     ## BLOCK Generation Ends
@@ -107,15 +109,14 @@ class EventSimulator:
 
     ###############################################
     ## HASH Propagation Starts
-    def schedule_hash_propagation(self, senderId: int, receiverId: int, blkId: str):
+    def schedule_hash_propagation(self, channel: int, senderId: int, receiverId: int, blkId: str):
         """Schedules the propagation of the block hash from sender to receiver."""
-        pij = self.peers[senderId].pij[receiverId]
-        cij = self.peers[senderId].cij[receiverId]
+        pij, cij = self.peers[senderId].get_channel_details(receiverId, channel)
         dij = random.expovariate(lambd=cij/96)
         delay = pij + Block.hashSize / cij  + dij
         delay = delay / 1000 ## delay in seconds
 
-        event = Event(EventType.HASH_PROPAGATE, self.env.now + delay, senderId, receiverId, blkId=blkId)
+        event = Event(EventType.HASH_PROPAGATE, channel, self.env.now + delay, senderId, receiverId, blkId=blkId)
         self.env.process(self.schedule_event(event, delay=delay))
 
     def process_hash_propagation(self, event: Event):
@@ -124,39 +125,38 @@ class EventSimulator:
             return
         
         if self.peers[peerId].add_hash(event.blkId, event.senderPeerId):
-            self.schedule_get_request(peerId, event.senderPeerId, event.blkId)
+            self.schedule_get_request(event.channel, peerId, event.senderPeerId, event.blkId)
     ## HASH Propagation Ends
     ##############################################
 
 
     ###############################################
     ## GET Propagation Starts
-    def schedule_get_request(self, senderId: int, receiverId: int, blkId: str):
+    def schedule_get_request(self, channel: int, senderId: int, receiverId: int, blkId: str):
         """Schedules the get request for the block hash from sender to receiver."""
-        pij = self.peers[senderId].pij[receiverId]
-        cij = self.peers[senderId].cij[receiverId]
+        pij, cij = self.peers[senderId].get_channel_details(receiverId, channel)
         dij = random.expovariate(lambd=cij/96)
         delay = pij + Block.hashSize / cij  + dij ## Size considered same as hash size
         delay = delay / 1000 ## delay in seconds
 
-        event = Event(EventType.GET_REQUEST, self.env.now + delay, senderId, receiverId, blkId=blkId)
+        event = Event(EventType.GET_REQUEST, channel, self.env.now + delay, senderId, receiverId, blkId=blkId)
         self.env.process(self.schedule_event(event, delay=delay))
-        self.schedule_timeout_event(senderId, blkId)
+        self.schedule_timeout_event(channel, senderId, blkId)
 
     def process_get_request(self, event: Event):
         peerId = event.peerId
-        block = self.peers[peerId].get_block_for_get_request(event.blkId)
+        block = self.peers[peerId].get_block_for_get_request(event.channel, event.blkId)
         if block is not None:
-            self.schedule_block_propagation(peerId, event.senderPeerId, block)
+            self.schedule_block_propagation(event.channel, peerId, event.senderPeerId, block)
     ## GET Propagation Ends
     ##############################################
 
 
     ###############################################
     ## TIMEOUT Event Starts
-    def schedule_timeout_event(self, peerId: int, blkId: str):
+    def schedule_timeout_event(self, channel: int, peerId: int, blkId: str):
         """Schedules the timeout event of the block hash for peerId."""
-        event = Event(EventType.TIMEOUT_EVENT, self.env.now + self.timeout_time, None, peerId, blkId=blkId)
+        event = Event(EventType.TIMEOUT_EVENT, channel, self.env.now + self.timeout_time, None, peerId, blkId=blkId)
         self.env.process(self.schedule_event(event, delay=self.timeout_time))
         self.peers[peerId].set_active_timeout(blkId)
 
@@ -166,22 +166,21 @@ class EventSimulator:
             return
         nextPeerId = self.peers[peerId].hash_timeout(event.blkId)
         if nextPeerId is not None:
-            self.schedule_get_request(peerId, nextPeerId, event.blkId)
+            self.schedule_get_request(event.channel, peerId, nextPeerId, event.blkId)
     ## TIMEOUT Event Ends
     ##############################################
 
 
     ###############################################
     ## BLOCK Propagation Starts
-    def schedule_block_propagation(self, senderId: int, receiverId: int, block: Block):
+    def schedule_block_propagation(self, channel: int, senderId: int, receiverId: int, block: Block):
         """Schedules the propagation of the block from sender to receiver."""
-        pij = self.peers[senderId].pij[receiverId]
-        cij = self.peers[senderId].cij[receiverId]
+        pij, cij = self.peers[senderId].get_channel_details(receiverId, channel)
         dij = random.expovariate(lambd=cij/96)
         delay = pij + block.size / cij  + dij
         delay = delay / 1000 ## delay in seconds
 
-        event = Event(EventType.BLOCK_PROPAGATE, self.env.now + delay, senderId, receiverId, block=block)
+        event = Event(EventType.BLOCK_PROPAGATE, channel, self.env.now + delay, senderId, receiverId, block=block)
         self.env.process(self.schedule_event(event, delay=delay))
 
 
@@ -205,10 +204,10 @@ class EventSimulator:
         if self.peers[peerId].mining_check():
             self.schedule_block_generation(peerId)
         
-        for connectedPeerId in self.peers[peerId].connectedPeers:
+        for connectedPeerId, channel in self.peers[peerId].get_connected_list(block.creatorID):
             if connectedPeerId in senderPeerIds:
                 continue
-            self.schedule_hash_propagation(peerId, connectedPeerId, block.blkId)
+            self.schedule_hash_propagation(channel, peerId, connectedPeerId, block.blkId)
     ## BLOCK Propagation Ends
     ##############################################
 
@@ -218,7 +217,7 @@ class EventSimulator:
     def schedule_transaction_generation(self, peerId: int):
         """Schedules the generation of a new transaction for the given peerId."""
         delay = random.expovariate(lambd=1/self.transaction_mean_time)
-        event = Event(EventType.TRANSACTION_GENERATE, self.env.now + delay, None, peerId)
+        event = Event(EventType.TRANSACTION_GENERATE, None, self.env.now + delay, None, peerId)
         self.env.process(self.schedule_event(event, delay=delay))
 
     def process_transaction_generation(self, event: Event):
@@ -257,7 +256,7 @@ class EventSimulator:
         delay = pij + Transaction.size / cij  + dij
         delay = delay / 1000 ## delay in seconds
 
-        event = Event(EventType.TRANSACTION_PROPAGATE, self.env.now + delay, senderId, receiverId, transaction=txn)
+        event = Event(EventType.TRANSACTION_PROPAGATE, 1, self.env.now + delay, senderId, receiverId, transaction=txn)
         self.env.process(self.schedule_event(event, delay=delay))
 
     def process_transaction_propagation(self, event: Event):

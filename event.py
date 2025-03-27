@@ -16,12 +16,13 @@ class EventType(Enum):
 
 
 class Event:
-    def __init__(self, etype: EventType, timestamp: int, senderPeerId: int, peerId: int, blkId: str = None, block: Block = None, transaction: Transaction = None):
+    def __init__(self, etype: EventType, channel: int, timestamp: int, senderPeerId: int, peerId: int, blkId: str = None, block: Block = None, transaction: Transaction = None):
         """
         Event representing a specific action in the simulation (block or transaction related).
         
         Args:
             etype (EventType): Type of the event.
+            channel (int): Channel of Network over which Event is sent. (int case of Propagate event)
             timestamp (int): The time at which the event occurs.
             senderPeerId (int): ID of the peer that sent the event. (in case of Propagate event)
             peerId (int): ID of the peer the event is being sent to.
@@ -31,6 +32,7 @@ class Event:
         """
 
         self.etype = etype
+        self.channel = channel
         self.timestamp = timestamp
         self.senderPeerId = senderPeerId
         self.peerId = peerId
