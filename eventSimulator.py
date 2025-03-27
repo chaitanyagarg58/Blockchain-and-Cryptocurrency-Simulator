@@ -166,7 +166,7 @@ class EventSimulator:
             return
         nextPeerId = self.peers[peerId].hash_timeout(event.blkId)
         if nextPeerId is not None:
-            self.schedule_timeout_event(peerId, event.blkId)
+            self.schedule_get_request(peerId, nextPeerId, event.blkId)
     ## TIMEOUT Event Ends
     ##############################################
 

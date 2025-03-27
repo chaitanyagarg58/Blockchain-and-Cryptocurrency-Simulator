@@ -7,20 +7,20 @@ from malicious import MaliciousNode
 from block import Block
 from eventSimulator import run_simulation
 import os
-from typing import List
+from typing import List, Union
 
-def logger(peers: List['PeerNode'], graph: ntxGraph,  folder: str):
+def logger(peers: List[Union[PeerNode, MaliciousNode]], graph: ntxGraph,  folder: str):
     """
     Saves the blockchain tree of each peer to the specified folder.
     
     Args:
-        peers (List[PeerNode]): List of PeerNode objects.
+        peers (List[Union[PeerNode, MaliciousNode]]): List of PeerNode/MaliciousNode objects.
         folder (str): Folder path where the trees will be saved.
     """
     with open(f"{folder}/Node_info.csv", "w") as file:
-        file.write("PeerId, CPU-Type, Network-Type, Hashing-Power\n")
+        file.write("PeerId, Peer-Type, CPU-Type, Network-Type, Hashing-Power\n")
         for peer in peers:
-            file.write(f"{peer.peerId}, {peer.cpuType.name}, {peer.netType.name}, {peer.hashingPower}\n")
+            file.write(f"{peer.peerId}, {peer.__class__.__name__}, {peer.cpuType.name}, {peer.netType.name}, {peer.hashingPower}\n")
 
     with open(f"{folder}/networkGraph.csv", "w") as file:
         file.write("Peer 1, Peer 2, Propagation-Delay, Link-Speed\n")

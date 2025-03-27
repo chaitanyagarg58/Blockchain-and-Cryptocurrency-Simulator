@@ -137,7 +137,7 @@ class PeerNode:
         """Returns the block corresponding to given block Id"""
         return self.blockchain.get_block_from_hash(blkId)
     
-    def hash_timeout(self, blkId: str) -> Optional[Block]:
+    def hash_timeout(self, blkId: str) -> Optional[int]:
         self.receivedHashes[blkId].senders.popleft()
         if len(self.receivedHashes[blkId].senders) == 0:
             self.receivedHashes[blkId].timeout_active = False
