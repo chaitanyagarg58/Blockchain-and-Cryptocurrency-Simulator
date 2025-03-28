@@ -10,6 +10,8 @@ class EventType(Enum):
     GET_REQUEST = auto()
     TIMEOUT_EVENT = auto()
     BLOCK_PROPAGATE = auto()
+    BROADCAST_PRIVATECHAIN = auto()
+    FINALIZE_EVENT = auto()
 
     TRANSACTION_GENERATE = auto()
     TRANSACTION_PROPAGATE = auto()

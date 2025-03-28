@@ -4,7 +4,7 @@ from transaction import Transaction
 from blockchainTree import BlockchainTree
 from collections import deque
 from dataclasses import dataclass, field
-import random
+from config import Config
 from typing import List, Deque, Tuple, Optional
 
 
@@ -52,8 +52,8 @@ class RepeatChecker:
 
 @dataclass
 class BlockHashMetadata:
-    all_senders: List[int] = field(default_factory=list) # list of all senders (including those who timedout)
-    senders: Deque[int] = field(default_factory=deque)  # Peers who sent this hash
+    all_senders: List[Tuple[int, int]] = field(default_factory=list) # list of all senders (including those who timedout)
+    senders: Deque[Tuple[int, int]] = field(default_factory=deque)  # Peers who sent this hash
     timeout_active: bool = False  # Whether a timeout is running
 
 class PeerNode:
@@ -112,7 +112,7 @@ class PeerNode:
         """Checks if a block has been received before."""
         return self.blockchain.check_block(blkId)
 
-    def add_hash(self, blkId: str, senderId: int) -> bool:
+    def add_hash(self, blkId: str, senderId: int, channel: int) -> bool:
         """
         Adds a block hash to the received Hashes.
         
@@ -125,8 +125,8 @@ class PeerNode:
         if blkId not in self.receivedHashes:
             self.receivedHashes[blkId] = BlockHashMetadata()
 
-        self.receivedHashes[blkId].senders.append(senderId)
-        self.receivedHashes[blkId].all_senders.append(senderId)
+        self.receivedHashes[blkId].senders.append((senderId, channel))
+        self.receivedHashes[blkId].all_senders.append((senderId, channel))
         return not self.receivedHashes[blkId].timeout_active
     
     def set_active_timeout(self, blkId: str):
@@ -137,16 +137,16 @@ class PeerNode:
         """Returns the block corresponding to given block Id"""
         return self.blockchain.get_block_from_hash(blkId)
     
-    def hash_timeout(self, blkId: str) -> Optional[int]:
+    def hash_timeout(self, blkId: str) -> Optional[Tuple[int, int]]:
         self.receivedHashes[blkId].senders.popleft()
+        self.receivedHashes[blkId].timeout_active = False
         if len(self.receivedHashes[blkId].senders) == 0:
-            self.receivedHashes[blkId].timeout_active = False
             return None
 
         return self.receivedHashes[blkId].senders[0]
 
-    def get_all_senders(self, blkId: str) -> List[int]:
-        return self.receivedHashes[blkId].all_senders
+    def get_all_senders(self, blkId: str) -> List[Tuple[int, int]]:
+        return map(lambda x: x[0], self.receivedHashes[blkId].all_senders)
     
     def get_connected_list(self, creatorId: int) -> List[Tuple[int, int]]:
         return [(connectedPeerId, 1) for connectedPeerId in self.connectedPeers]
@@ -154,7 +154,7 @@ class PeerNode:
     def get_channel_details(self, connectedPeerId: int, channel: int) -> Tuple[int, int]:
         return self.pij[connectedPeerId], self.cij[connectedPeerId]
 
-    def add_block(self, block: Block, arrTime : float) -> bool:
+    def add_block(self, block: Block, arrTime : float) -> Optional[str]:
         """
         Adds a new block to the blockchain, check for change in longest chain and updates the mempool.
 
@@ -163,14 +163,11 @@ class PeerNode:
             arrTime (float): The time the block was received.
 
         Returns:
-            bool: True if the longest chain changed, False otherwise.
+            Optional[str]: None.
         """
         self.receivedHashes.pop(block.blkId, None)
 
         self.blockchain.add_block(block, arrTime)
-        longest_changed = True
-        if self.blockchain.prevChainTip == self.blockchain.longestChainTip:
-            longest_changed = False
         
         # Update mempool for the longest chain
         lca = self.blockchain.lca()
@@ -178,7 +175,6 @@ class PeerNode:
         del_set = self.blockchain.get_txn_set(self.blockchain.longestChainTip, lca)
         self.mempool = self.mempool | insert_set
         self.mempool = self.mempool.difference(del_set)
-        return longest_changed
 
     def set_miningBlk(self, blkId: str):
         """Updates the block ID currently being mined."""
@@ -208,7 +204,7 @@ class PeerNode:
             List[Transaction]: A list of transactions that can be included in a new block.
         """
 
-        currentBalance = self.blockchain.get_lastBlock().peerBalance
+        currentBalance = self.get_lastBlk().peerBalance
         peerSpent = {peerId: 0 for peerId in currentBalance.keys()}
         txns = []
         txns.append(Transaction(-1, self.peerId, Block.miningReward)) # Coinbase

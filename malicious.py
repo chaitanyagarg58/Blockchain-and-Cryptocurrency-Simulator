@@ -1,9 +1,6 @@
-from enum import Enum, auto
 from block import Block
-from transaction import Transaction
-from blockchainTree import BlockchainTree
-from collections import defaultdict
-import random
+from maliciousBlockchainTree import MaliciousBlockchainTree
+from config import Config
 from typing import List, Tuple, Optional
 from peer import PeerNode, CPUType, NetworkType
 
@@ -24,6 +21,7 @@ class MaliciousNode(PeerNode):
         """
         super().__init__(peerId, netType, cpuType, hashingPower, genesisBlock)
 
+        self.blockchain = MaliciousBlockchainTree(genesisBlock)
         self.overlay_connectedPeers = []
         self.overlay_pij = {}
         self.overlay_cij = {}
@@ -38,11 +36,17 @@ class MaliciousNode(PeerNode):
         self.overlay_cij[connectedPeerId] = cij
 
     def get_connected_list(self, creatorId: int) -> List[Tuple[int, int]]:
-        forwarding_list = [(overlay_connectedPeerId, 2) for overlay_connectedPeerId in self.overlay_connectedPeers]
+        forwarding_list = self.get_overlay_connections()
         if creatorId != MaliciousNode.RingmasterId:
-            forwarding_list += [(connectedPeerId, 1) for connectedPeerId in self.connectedPeers]
+            forwarding_list += self.get_public_connections()
         return forwarding_list
     
+    def get_overlay_connections(self) -> List[Tuple[int, int]]:
+        return [(overlay_connectedPeerId, 2) for overlay_connectedPeerId in self.overlay_connectedPeers]
+    
+    def get_public_connections(self) ->List[Tuple[int, int]]:
+        return super().get_connected_list(-1)
+
     def get_channel_details(self, connectedPeerId: int, channel: int) -> Tuple[int, int]:
         if channel == 1:
             return self.pij[connectedPeerId], self.cij[connectedPeerId]
@@ -50,9 +54,41 @@ class MaliciousNode(PeerNode):
             return self.overlay_pij[connectedPeerId], self.overlay_cij[connectedPeerId]
 
     def get_block_for_get_request(self, channel: int, blkId: str) -> Optional[Block]:
-            if channel == 1:
-                return None
-            return self.blockchain.get_block_from_hash(blkId)
+        block = self.blockchain.get_block_from_hash(blkId)
+        if block.creatorID == MaliciousNode.RingmasterId or channel != 1:
+            return block
+        return None
+    
+    def broadcast_seen(self, blkId: str) -> bool:
+        return self.blockchain.check_broadcast(blkId)
+
+    def get_private_chain(self, blkId: str) -> List[str]:
+        private_chain = self.blockchain.get_private_chain(blkId)
+        ret = []
+        for private_block, arrTime in private_chain:
+            super().add_block(private_block, arrTime)
+            ret.append(private_block.blkId)
+        return ret
+
+    def add_block(self, block: Block, arrTime : float) -> Optional[str]:
+        """
+        Adds a new block to the blockchain, check for change in longest chain and updates the mempool.
+        Implements Selfish Mining.
+
+        Args:
+            block (Block): The new block to add.
+            arrTime (float): The time the block was received.
+
+        Returns:
+            str: None
+        """
+        if block.creatorID != MaliciousNode.RingmasterId:
+            super().add_block(block, arrTime)
+            return None
+        
+        
+        self.receivedHashes.pop(block.blkId, None)
+        self.blockchain.add_selfish_block(block, arrTime)
 
 class RingMasterNode(MaliciousNode):
 
@@ -68,3 +104,40 @@ class RingMasterNode(MaliciousNode):
             genesisBlock (Block): The initial block of the blockchain.
         """
         super().__init__(peerId, netType, cpuType, hashingPower, genesisBlock)
+
+    def get_lastBlk(self) -> Block:
+        """Returns the last block in the longest chain."""
+        honest = self.blockchain.get_lastBlock()
+        private = self.blockchain.get_last_private_block()
+        if private is None or private.depth < honest.depth:
+            return honest
+        else:
+            return private
+
+    def add_block(self, block: Block, arrTime : float) -> Optional[str]:
+        """
+        Adds a new block to the blockchain, check for change in longest chain and updates the mempool.
+        Implements Selfish Mining.
+
+        Args:
+            block (Block): The new block to add.
+            arrTime (float): The time the block was received.
+
+        Returns:
+            bool: True if the longest chain changed, False otherwise.
+        """
+        if block.creatorID == MaliciousNode.RingmasterId:
+            super().add_block(block, arrTime)
+            return None
+        
+
+        super().add_block(block, arrTime)
+        honest_block = self.blockchain.get_lastBlock()
+        private_block = self.blockchain.get_last_private_block()
+        if private_block is None or private_block.depth > honest_block.depth + 1:
+            return None
+        
+        return private_block.blkId
+        
+    def get_last_private_block(self) -> Optional[Block]:
+        return self.blockchain.get_last_private_block()

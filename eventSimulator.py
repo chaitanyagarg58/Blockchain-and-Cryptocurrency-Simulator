@@ -1,21 +1,25 @@
 import simpy
 from event import EventType, Event
-from peer import NetworkType, CPUType, PeerNode
+from peer import PeerNode
+from malicious import MaliciousNode, RingMasterNode
 from transaction import Transaction
 from block import Block
+from config import Config
 import random
 from tqdm import tqdm
-from typing import List
+from typing import List, Union
 
 
 class EventSimulator:
-    def __init__(self, env: simpy.Environment, peers: List['PeerNode'], block_interarrival_time: float, transaction_mean_time: float, timeout_time: float, sim_time: float):
+    def __init__(self, env: simpy.Environment, peers: List[Union[PeerNode, MaliciousNode, RingMasterNode]], block_interarrival_time: float, transaction_mean_time: float, timeout_time: float, sim_time: float):
         """Initialize the simulator environment"""
         self.env = env
         self.peers = peers
         self.block_interarrival_time = block_interarrival_time
         self.transaction_mean_time = transaction_mean_time
         self.timeout_time = timeout_time
+        self.sim_time = sim_time
+        self.soft_termination = False
 
         self.eventHandler = {}
         self.eventHandler[EventType.BLOCK_GENERATE] = self.process_block_generation
@@ -23,34 +27,37 @@ class EventSimulator:
         self.eventHandler[EventType.HASH_PROPAGATE] = self.process_hash_propagation
         self.eventHandler[EventType.GET_REQUEST] = self.process_get_request
         self.eventHandler[EventType.TIMEOUT_EVENT] = self.process_timeout_event
+        self.eventHandler[EventType.BROADCAST_PRIVATECHAIN] = self.process_broadcast_privatechain
         self.eventHandler[EventType.TRANSACTION_GENERATE] = self.process_transaction_generation
         self.eventHandler[EventType.TRANSACTION_PROPAGATE] = self.process_transaction_propagation
-        self.pij = [[0] * len(peers) for _ in range(len(peers))]
-        self.cij = [[0] * len(peers) for _ in range(len(peers))]
+        self.eventHandler[EventType.FINALIZE_EVENT] = self.finalize_event
 
-        for p1 in peers:
-            for p2 in p1.pij:
-                self.pij[p1.peerId][p2] = p1.pij[p2]
-            for p2 in p1.cij:
-                self.cij[p1.peerId][p2] = p1.cij[p2]
+        self.validEventsAfterSimEnd = [EventType.BLOCK_PROPAGATE, EventType.HASH_PROPAGATE, EventType.GET_REQUEST, EventType.TIMEOUT_EVENT, EventType.BROADCAST_PRIVATECHAIN, EventType.FINALIZE_EVENT]
 
         for peer in peers:
             self.schedule_transaction_generation(peer.peerId)
             self.schedule_block_generation(peer.peerId)
         
-        self.progress_bar = tqdm(total=sim_time, desc="Simulation Progress", position=0, leave=True)
+        self.progress_bar = tqdm(total=self.sim_time, desc="Simulation Progress", position=0, leave=True)
         self.last_update = 0
+
+        final_event = Event(EventType.FINALIZE_EVENT, None, None, None, MaliciousNode.RingmasterId)
+        self.env.process(self.schedule_event(final_event, delay=self.sim_time))
 
 
     def process_event(self, event: Event):
         """Process event based on its type"""
 
-        if self.last_update < self.env.now:
+        if not self.soft_termination and self.last_update < self.env.now:
             self.progress_bar.update(self.env.now - self.last_update)
             self.last_update = self.env.now
 
         eventType = event.etype
         handler = self.eventHandler.get(event.etype, None)
+        
+        if self.soft_termination and eventType not in self.validEventsAfterSimEnd:
+            return
+
         if handler:
             handler(event)
         else:
@@ -124,7 +131,7 @@ class EventSimulator:
         if self.peers[peerId].block_seen(event.blkId):
             return
         
-        if self.peers[peerId].add_hash(event.blkId, event.senderPeerId):
+        if self.peers[peerId].add_hash(event.blkId, event.senderPeerId, event.channel):
             self.schedule_get_request(event.channel, peerId, event.senderPeerId, event.blkId)
     ## HASH Propagation Ends
     ##############################################
@@ -164,10 +171,42 @@ class EventSimulator:
         peerId = event.peerId
         if self.peers[peerId].block_seen(event.blkId):
             return
-        nextPeerId = self.peers[peerId].hash_timeout(event.blkId)
-        if nextPeerId is not None:
-            self.schedule_get_request(event.channel, peerId, nextPeerId, event.blkId)
+        nextPeerDetails = self.peers[peerId].hash_timeout(event.blkId)
+        if nextPeerDetails is not None:
+            nextPeerId, nextChannel = nextPeerDetails
+            self.schedule_get_request(nextChannel, peerId, nextPeerId, event.blkId)
     ## TIMEOUT Event Ends
+    ##############################################
+
+
+    ###############################################
+    ## BROADCAST Event Starts
+    def schedule_broadcast_privatechain(self, channel: int, senderId: int, receiverId: int, blkId: str):
+        """Schedules the timeout event of the block hash for peerId."""
+        pij, cij = self.peers[senderId].get_channel_details(receiverId, channel)
+        dij = random.expovariate(lambd=cij/96)
+        delay = pij + Block.hashSize / cij  + dij ## Size considered same as hash size
+        delay = delay / 1000 ## delay in seconds
+
+        event = Event(EventType.BROADCAST_PRIVATECHAIN, None, self.env.now + delay, senderId, receiverId, blkId=blkId)
+        self.env.process(self.schedule_event(event, delay=delay))
+
+    def process_broadcast_privatechain(self, event: Event):
+        peerId = event.peerId
+        if self.peers[peerId].broadcast_seen(event.blkId):
+            return
+
+        privateblkIds = self.peers[peerId].get_private_chain(event.blkId)
+
+        for connectedPeerId, channel in self.peers[peerId].get_overlay_connections():
+            if connectedPeerId == event.senderPeerId:
+                continue
+            self.schedule_broadcast_privatechain(channel, peerId, connectedPeerId, event.blkId)
+
+        for privateblkId in privateblkIds:
+            for connectedPeerId, channel in self.peers[peerId].get_public_connections():
+                self.schedule_hash_propagation(channel, peerId, connectedPeerId, privateblkId)
+    ## BROADCAST Event Ends
     ##############################################
 
 
@@ -194,13 +233,17 @@ class EventSimulator:
         Propagate this event to connected peer. (Loopless forwarding)
         """
         peerId = event.peerId
-        if self.peers[peerId].block_seen(event.block):
+        if self.peers[peerId].block_seen(event.blkId):
             return
         
         block = event.block
         senderPeerIds = self.peers[peerId].get_all_senders(block.blkId)
 
-        self.peers[peerId].add_block(block, self.env.now)
+        broadcast_blkId = self.peers[peerId].add_block(block, self.env.now)
+        if broadcast_blkId is not None:
+            self_broadcast = Event(EventType.BROADCAST_PRIVATECHAIN, None, self.env.now, peerId, peerId, blkId=broadcast_blkId)
+            self.process_broadcast_privatechain(self_broadcast)
+
         if self.peers[peerId].mining_check():
             self.schedule_block_generation(peerId)
         
@@ -283,6 +326,14 @@ class EventSimulator:
     ## Transaction Propogation Ends
     ############################################
 
+    def finalize_event(self, event: Event):
+        self.soft_termination = True
+        broadcast_block = self.peers[MaliciousNode.RingmasterId].get_last_private_block()
+        if broadcast_block is None:
+            return
+        broadcast_blkId = broadcast_block.blkId
+        self_broadcast = Event(EventType.BROADCAST_PRIVATECHAIN, None, self.env.now, MaliciousNode.RingmasterId, MaliciousNode.RingmasterId, blkId=broadcast_blkId)
+        self.process_broadcast_privatechain(self_broadcast)
 
 
 def run_simulation(peers, block_interarrival_time: float, transaction_interarrival_time: float, timeout_time: float, sim_time: float):
@@ -290,3 +341,9 @@ def run_simulation(peers, block_interarrival_time: float, transaction_interarriv
     simulator = EventSimulator(env, peers, block_interarrival_time, transaction_interarrival_time, timeout_time, sim_time)
 
     env.run(until=sim_time)
+
+    print("Simulation ended. Final Block Propagation.")
+    while len(env._queue) > 0:
+        env.step()
+
+    print("Final Broadcast completed.")

@@ -6,6 +6,7 @@ from peer import PeerNode, NetworkType, CPUType
 from malicious import MaliciousNode, RingMasterNode
 from block import Block
 from eventSimulator import run_simulation
+from config import Config
 import os
 from typing import List, Union
 
@@ -49,6 +50,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--sim_time", type=float, required=True, help="Simulation Time (seconds)")
     parser.add_argument("-f", "--folder", type = str, required=False, help="Folder to store results")
     parser.add_argument("-r", "--remove_eclipse", action="store_true", help="Remove Eclipse Attack from Malicous Nodes (only selfish mining)")
+    parser.add_argument("-c", "--counter_measure", action="store_true", help="Remove Eclipse Attack from Malicous Nodes (only selfish mining)")
     args = parser.parse_args()
 
     num_honest = args.num_honest
@@ -59,6 +61,8 @@ if __name__ == "__main__":
     block_interarrival_time = args.block_interarrival
     sim_time = args.sim_time
     folder_to_store = args.folder
+    Config.remove_eclipse = args.remove_eclipse
+    Config.counter_measure = args.counter_measure
 
     if folder_to_store is None:
         folder_to_store = "."
@@ -118,5 +122,6 @@ if __name__ == "__main__":
     # Run the simulation with the provided parameters
     run_simulation(peers, block_interarrival_time, transaction_interarrival_time, timeout_time, sim_time)
 
+    Config.log(folder_to_store)
     # Log required Information
     logger(peers, Graph, Overlay_Graph, folder_to_store)

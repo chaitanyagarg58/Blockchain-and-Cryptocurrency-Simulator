@@ -1,5 +1,6 @@
 from transaction import Transaction
 from block import Block
+from config import Config
 from collections import defaultdict
 from typing import Set
 
@@ -11,6 +12,7 @@ class BlockchainTree:
         Args:
             genesisBlock (Block): The genesis Block.
         """
+        self.genesisBlock = genesisBlock
         self.seenBlocks = {genesisBlock.blkId: genesisBlock}
         self.children = defaultdict(list)
         self.longestChainTip = genesisBlock.blkId
@@ -46,8 +48,8 @@ class BlockchainTree:
         if blk2 == "-1":
             blk2 = self.prevChainTip
         
-        if self.prevChainTip == "-1":
-            return 0
+        if blk1 == "-1" or blk2 == "-1":
+            return self.genesisBlock.blkId
         
         block1 = self.seenBlocks[blk1]
         block2 = self.seenBlocks[blk2]
@@ -184,10 +186,11 @@ class BlockchainTree:
             Set[Transaction]: The set of transactions.
         """
         txnSet = set()
-        block = self.seenBlocks[blkId]
-        while block.blkId != ancestorId:
+        currId = blkId
+        while currId != "-1" and currId != ancestorId:
+            block = self.seenBlocks[currId]
             txnSet = txnSet | set(block.Txns[1:])
-            block = self.seenBlocks[block.parentBlkID]
+            currId = block.parentBlkID
         return txnSet
     
 
