@@ -35,8 +35,7 @@ class Block:
                 self.peerBalance[txn.recID] += txn.amt
 
         # Unique Block Id is set using proper hashing
-        self.blockString = f"{self.parentBlkID}|{self.timestamp}|{self.get_merkle_root()}"
-        self.blkId = sha256(self.blockString.encode()).hexdigest()
+        self.blkId = sha256(str(self).encode()).hexdigest()
 
     def get_merkle_root(self) -> str:
         """Returns the Merkle Root of the Transactions in block"""
@@ -50,3 +49,9 @@ class Block:
             txns_hash = [sha256((txns_hash[i] + txns_hash[i+1]).encode()).hexdigest() for i in range(0, len(txns_hash), 2)]
 
         return txns_hash[0]
+
+    def __str__(self):
+        blockString = f"{self.parentBlkID}|{self.timestamp}|{self.get_merkle_root()}|"
+        for txn in self.Txns:
+            blockString += f"|{str(txn)}"
+        return blockString
