@@ -53,8 +53,8 @@ class RepeatChecker:
 @dataclass
 class BlockHashMetadata:
     all_senders: List[Tuple[int, int]] = field(default_factory=list) # list of all senders (including those who timedout)
-    senders: Deque[Tuple[int, int]] = field(default_factory=deque)  # Peers who sent this hash
-    timeout_active: bool = False  # Whether a timeout is running
+    passive_senders: List[Tuple[int, int]] = field(default_factory=list)  # Peers who sent hash and not yet sent get request
+    active_senders: List[Tuple[int, int]] = field(default_factory=list) # Peers who had been sent get request and timeout is active (in sequence). len is maximum 1 when no counter measure
 
 class PeerNode:
     """Represents a Peer/Miner in the blockchain P2P network."""
@@ -125,25 +125,27 @@ class PeerNode:
         if blkId not in self.receivedHashes:
             self.receivedHashes[blkId] = BlockHashMetadata()
 
-        self.receivedHashes[blkId].senders.append((senderId, channel))
+        self.receivedHashes[blkId].passive_senders.append((senderId, channel))
         self.receivedHashes[blkId].all_senders.append((senderId, channel))
-        return not self.receivedHashes[blkId].timeout_active
+        return len(self.receivedHashes[blkId].active_senders) == 0
     
-    def set_active_timeout(self, blkId: str):
-        """Set the timeout for given blkId as active"""
-        self.receivedHashes[blkId].timeout_active = True
-    
+    def scheduled_get(self, peerId: int, channel: int, blkId: str):
+        self.receivedHashes[blkId].passive_senders.remove((peerId, channel))
+        self.receivedHashes[blkId].active_senders.append((peerId, channel))
+
     def get_block_for_get_request(self, channel: int, blkId: str) -> Optional[Block]:
         """Returns the block corresponding to given block Id"""
         return self.blockchain.get_block_from_hash(blkId)
-    
-    def hash_timeout(self, blkId: str) -> Optional[Tuple[int, int]]:
-        self.receivedHashes[blkId].senders.popleft()
-        self.receivedHashes[blkId].timeout_active = False
-        if len(self.receivedHashes[blkId].senders) == 0:
+
+    def hash_timeout(self, targetId: int, channel: int, blkId: str) -> Optional[Tuple[int, int]]:
+        self.receivedHashes[blkId].active_senders.remove((targetId, channel))
+
+        if len(self.receivedHashes[blkId].active_senders) != 0:
             return None
 
-        return self.receivedHashes[blkId].senders[0]
+        if len(self.receivedHashes[blkId].passive_senders) == 0:
+            return None
+        return self.receivedHashes[blkId].passive_senders[0]
 
     def get_all_senders(self, blkId: str) -> List[Tuple[int, int]]:
         return map(lambda x: x[0], self.receivedHashes[blkId].all_senders)

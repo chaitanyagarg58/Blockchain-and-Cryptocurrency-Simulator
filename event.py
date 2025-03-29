@@ -18,7 +18,7 @@ class EventType(Enum):
 
 
 class Event:
-    def __init__(self, etype: EventType, channel: int, timestamp: int, senderPeerId: int, peerId: int, blkId: str = None, block: Block = None, transaction: Transaction = None):
+    def __init__(self, etype: EventType, channel: int, timestamp: int, senderPeerId: int, peerId: int, timeoutTargetId: int = None, blkId: str = None, block: Block = None, transaction: Transaction = None):
         """
         Event representing a specific action in the simulation (block or transaction related).
         
@@ -28,6 +28,7 @@ class Event:
             timestamp (int): The time at which the event occurs.
             senderPeerId (int): ID of the peer that sent the event. (in case of Propagate event)
             peerId (int): ID of the peer the event is being sent to.
+            timeoutTargetId (int, optional): peerId which timed out on get request.
             blkId (str, optional): Hash of block associated with the event (if applicable).
             block (Block, optional): Block associated with the event (if applicable).
             transaction (Transaction, optional): Transaction associated with the event (if applicable).
@@ -38,6 +39,7 @@ class Event:
         self.timestamp = timestamp
         self.senderPeerId = senderPeerId
         self.peerId = peerId
+        self.timeoutTargetId = timeoutTargetId
         self.blkId = blkId
         self.block = block
         self.transaction = transaction

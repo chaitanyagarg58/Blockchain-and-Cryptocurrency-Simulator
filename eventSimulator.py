@@ -148,7 +148,8 @@ class EventSimulator:
 
         event = Event(EventType.GET_REQUEST, channel, self.env.now + delay, senderId, receiverId, blkId=blkId)
         self.env.process(self.schedule_event(event, delay=delay))
-        self.schedule_timeout_event(channel, senderId, blkId)
+        self.schedule_timeout_event(channel, senderId, receiverId, blkId)
+        self.peers[senderId].scheduled_get(receiverId, channel, blkId)
 
     def process_get_request(self, event: Event):
         peerId = event.peerId
@@ -161,17 +162,16 @@ class EventSimulator:
 
     ###############################################
     ## TIMEOUT Event Starts
-    def schedule_timeout_event(self, channel: int, peerId: int, blkId: str):
+    def schedule_timeout_event(self, channel: int, peerId: int, targetId: int, blkId: str):
         """Schedules the timeout event of the block hash for peerId."""
-        event = Event(EventType.TIMEOUT_EVENT, channel, self.env.now + self.timeout_time, None, peerId, blkId=blkId)
+        event = Event(EventType.TIMEOUT_EVENT, channel, self.env.now + self.timeout_time, None, peerId, timeoutTargetId=targetId, blkId=blkId)
         self.env.process(self.schedule_event(event, delay=self.timeout_time))
-        self.peers[peerId].set_active_timeout(blkId)
 
     def process_timeout_event(self, event: Event):
         peerId = event.peerId
         if self.peers[peerId].block_seen(event.blkId):
             return
-        nextPeerDetails = self.peers[peerId].hash_timeout(event.blkId)
+        nextPeerDetails = self.peers[peerId].hash_timeout(event.timeoutTargetId, event.channel, event.blkId)
         if nextPeerDetails is not None:
             nextPeerId, nextChannel = nextPeerDetails
             self.schedule_get_request(nextChannel, peerId, nextPeerId, event.blkId)
