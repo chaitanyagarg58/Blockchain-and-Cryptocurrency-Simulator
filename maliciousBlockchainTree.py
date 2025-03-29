@@ -31,8 +31,6 @@ class MaliciousBlockchainTree(BlockchainTree):
         block = next((block for block, _ in self.privateChain if block.blkId == blkId), None)
         if block is None:
             block = super().get_block_from_hash(blkId)
-
-        assert block is not None, "Got get request for block, but don't have block"
         return block
 
     def get_last_private_block(self) -> Optional[Block]:

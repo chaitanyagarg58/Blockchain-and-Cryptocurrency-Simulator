@@ -55,7 +55,7 @@ class MaliciousNode(PeerNode):
 
     def get_block_for_get_request(self, channel: int, blkId: str) -> Optional[Block]:
         block = self.blockchain.get_block_from_hash(blkId)
-        if block.creatorID == MaliciousNode.RingmasterId or channel != 1:
+        if Config.remove_eclipse or block.creatorID == MaliciousNode.RingmasterId or channel != 1:
             return block
         return None
     
