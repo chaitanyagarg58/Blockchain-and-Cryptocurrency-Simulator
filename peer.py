@@ -2,10 +2,9 @@ from enum import Enum, auto
 from block import Block
 from transaction import Transaction
 from blockchainTree import BlockchainTree
-from collections import deque
 from dataclasses import dataclass, field
 from config import Config
-from typing import List, Deque, Tuple, Optional
+from typing import List, Dict, Set, Tuple, Optional
 
 
 class NetworkType(Enum):
@@ -87,9 +86,13 @@ class PeerNode:
         self.miningBlkId = None
         self.blockchain = BlockchainTree(genesisBlock)
 
+        ## Counter Measure for eclipse attack
+        self.peerPendingRequests: Dict[int, Set[str]] = {}  # For each connected peer, the set of blkIds for which get request is sent, but block not received
+
     def add_connected_peer(self, connectedPeerId: int):
         """Add a connected peer."""
         self.connectedPeers.append(connectedPeerId)
+        self.peerPendingRequests[connectedPeerId] = set()
 
     def add_propogation_link_delay(self, connectedPeerId: int, pij : float):
         """Sets the propagation delay for a connection to a peer."""
@@ -112,6 +115,23 @@ class PeerNode:
         """Checks if a block has been received before."""
         return self.blockchain.check_block(blkId)
 
+    def respond_to_get_received(self, blkId: str, senderId: int, channel: int):
+        if channel == 1:
+            self.peerPendingRequests[senderId].discard(blkId)
+
+    def trust_on_peer(self, questionedPeerId: int, channel: int) -> bool:
+        if channel == 2:
+            return True
+        trust_active_peer = True
+        for pending_blkId in self.peerPendingRequests[questionedPeerId]:
+            if pending_blkId in self.receivedHashes and (questionedPeerId, channel) in self.receivedHashes[pending_blkId].active_senders:
+                continue # excuse this block
+            else:
+                # Don't trust this peer
+                trust_active_peer = False
+                break
+        return trust_active_peer
+
     def add_hash(self, blkId: str, senderId: int, channel: int) -> bool:
         """
         Adds a block hash to the received Hashes.
@@ -127,11 +147,21 @@ class PeerNode:
 
         self.receivedHashes[blkId].passive_senders.append((senderId, channel))
         self.receivedHashes[blkId].all_senders.append((senderId, channel))
+
+        if Config.counter_measure:
+            for active_peer, active_channel in self.receivedHashes[blkId].active_senders:
+                if self.trust_on_peer(active_peer, active_channel):
+                    return False
+            return True
+
         return len(self.receivedHashes[blkId].active_senders) == 0
     
     def scheduled_get(self, peerId: int, channel: int, blkId: str):
         self.receivedHashes[blkId].passive_senders.remove((peerId, channel))
         self.receivedHashes[blkId].active_senders.append((peerId, channel))
+
+        if channel == 1:
+            self.peerPendingRequests[peerId].add(blkId)
 
     def get_block_for_get_request(self, channel: int, blkId: str) -> Optional[Block]:
         """Returns the block corresponding to given block Id"""
@@ -139,6 +169,15 @@ class PeerNode:
 
     def hash_timeout(self, targetId: int, channel: int, blkId: str) -> Optional[Tuple[int, int]]:
         self.receivedHashes[blkId].active_senders.remove((targetId, channel))
+
+        if Config.counter_measure:
+            for active_peer, active_channel in self.receivedHashes[blkId].active_senders:
+                if self.trust_on_peer(active_peer, active_channel):
+                    return None
+
+            for passive_peer, passive_channel in self.receivedHashes[blkId].passive_senders:
+                if self.trust_on_peer(passive_peer, passive_channel):
+                    return passive_peer, passive_channel
 
         if len(self.receivedHashes[blkId].active_senders) != 0:
             return None

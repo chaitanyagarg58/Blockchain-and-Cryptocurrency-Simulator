@@ -233,7 +233,10 @@ class EventSimulator:
         Propagate this event to connected peer. (Loopless forwarding)
         """
         peerId = event.peerId
-        if self.peers[peerId].block_seen(event.blkId):
+
+        self.peers[peerId].respond_to_get_received(event.block.blkId, event.senderPeerId, event.channel)
+
+        if self.peers[peerId].block_seen(event.block.blkId):
             return
         
         block = event.block
