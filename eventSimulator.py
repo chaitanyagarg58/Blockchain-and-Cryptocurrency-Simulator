@@ -281,8 +281,8 @@ class EventSimulator:
 
         self.peers[peerId].add_txn_in_mempool(txn)
 
-        for connectedPeerId in self.peers[peerId].connectedPeers:
-            self.schedule_transaction_propagation(peerId, connectedPeerId, txn)
+        for connectedPeerId, channel in self.peers[peerId].get_connected_list(-1):
+            self.schedule_transaction_propagation(channel, peerId, connectedPeerId, txn)
 
         self.schedule_transaction_generation(peerId)
     ## Transaction Generation Ends
@@ -291,15 +291,14 @@ class EventSimulator:
 
     ################################################
     ## Transaction Propogation Begins
-    def schedule_transaction_propagation(self, senderId: int, receiverId: int, txn: Transaction):
+    def schedule_transaction_propagation(self, channel: int, senderId: int, receiverId: int, txn: Transaction):
         """Schedules the propagation of the transaction from sender to receiver."""
-        pij = self.peers[senderId].pij[receiverId]
-        cij = self.peers[senderId].cij[receiverId]
+        pij, cij = self.peers[senderId].get_channel_details(receiverId, channel)
         dij = random.expovariate(lambd=cij/96)
         delay = pij + Transaction.size / cij  + dij
         delay = delay / 1000 ## delay in seconds
 
-        event = Event(EventType.TRANSACTION_PROPAGATE, 1, self.env.now + delay, senderId, receiverId, transaction=txn)
+        event = Event(EventType.TRANSACTION_PROPAGATE, channel, self.env.now + delay, senderId, receiverId, transaction=txn)
         self.env.process(self.schedule_event(event, delay=delay))
 
     def process_transaction_propagation(self, event: Event):
@@ -319,10 +318,10 @@ class EventSimulator:
 
         self.peers[peerId].add_txn_in_mempool(txn)
         
-        for connectedPeerId in self.peers[peerId].connectedPeers:
+        for connectedPeerId, channel in self.peers[peerId].get_connected_list(-1):
             if connectedPeerId == event.senderPeerId:
                 continue
-            self.schedule_transaction_propagation(peerId, connectedPeerId, txn)
+            self.schedule_transaction_propagation(channel, peerId, connectedPeerId, txn)
     ## Transaction Propogation Ends
     ############################################
 
