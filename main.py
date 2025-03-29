@@ -50,7 +50,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--sim_time", type=float, required=True, help="Simulation Time (seconds)")
     parser.add_argument("-f", "--folder", type = str, required=False, help="Folder to store results")
     parser.add_argument("-r", "--remove_eclipse", action="store_true", help="Remove Eclipse Attack from Malicous Nodes (only selfish mining)")
-    parser.add_argument("-c", "--counter_measure", action="store_true", help="Remove Eclipse Attack from Malicous Nodes (only selfish mining)")
+    parser.add_argument("-c", "--counter_measure", action="store_true", help="Add counter measure in Honest Nodes against eclipse attack.")
     args = parser.parse_args()
 
     num_honest = args.num_honest
@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     if folder_to_store is None:
         folder_to_store = "."
-        folder_to_store = f"logs_{num_honest}_{num_malicious}_{timeout_time}_{int(transaction_interarrival_time * 1000)}_{int(block_interarrival_time * 1000)}_{int(sim_time)}"
+        folder_to_store = f"logs_{num_honest}_{num_malicious}_{int(timeout_time * 1000)}_{int(transaction_interarrival_time * 1000)}_{int(block_interarrival_time * 1000)}_{int(sim_time)}"
 
     os.makedirs(folder_to_store, exist_ok=True)
 
