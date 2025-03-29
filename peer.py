@@ -51,12 +51,13 @@ class RepeatChecker:
 
 @dataclass
 class BlockHashMetadata:
+    """Metadata for tracking block hash propagation and handling."""
     all_senders: List[Tuple[int, int]] = field(default_factory=list) # list of all senders (including those who timedout)
     passive_senders: List[Tuple[int, int]] = field(default_factory=list)  # Peers who sent hash and not yet sent get request
     active_senders: List[Tuple[int, int]] = field(default_factory=list) # Peers who had been sent get request and timeout is active (in sequence). len is maximum 1 when no counter measure
 
 class PeerNode:
-    """Represents a Peer/Miner in the blockchain P2P network."""
+    """Represents a Honest Peer/Miner in the blockchain P2P network."""
 
     def __init__(self, peerId: int, netType: NetworkType, cpuType: CPUType, hashingPower: float, genesisBlock: Block):
         """
@@ -116,10 +117,12 @@ class PeerNode:
         return self.blockchain.check_block(blkId)
 
     def respond_to_get_received(self, blkId: str, senderId: int, channel: int):
+        """Handles the response when a requested block is received."""
         if channel == 1:
             self.peerPendingRequests[senderId].discard(blkId)
 
     def trust_on_peer(self, questionedPeerId: int, channel: int) -> bool:
+        """Used only when Counter Measure is enabled. Checks if given connection can be trusted to respond to get request."""
         if channel == 2:
             return True
         trust_active_peer = True
@@ -135,12 +138,8 @@ class PeerNode:
     def add_hash(self, blkId: str, senderId: int, channel: int) -> bool:
         """
         Adds a block hash to the received Hashes.
-        
-        Args:
-            blkId (str): The hash of the block.
-        
         Returns:
-            bool: True if a new get request (and timeout) should be created for this sender right now, False otherwise.
+            bool: True if a new get request should be created for this sender right now, False otherwise.
         """
         if blkId not in self.receivedHashes:
             self.receivedHashes[blkId] = BlockHashMetadata()
@@ -157,6 +156,7 @@ class PeerNode:
         return len(self.receivedHashes[blkId].active_senders) == 0
     
     def scheduled_get(self, peerId: int, channel: int, blkId: str):
+        """Updates meta data to indicate that a get request has been scheduled corresponding to given connection and block id."""
         self.receivedHashes[blkId].passive_senders.remove((peerId, channel))
         self.receivedHashes[blkId].active_senders.append((peerId, channel))
 
@@ -164,10 +164,11 @@ class PeerNode:
             self.peerPendingRequests[peerId].add(blkId)
 
     def get_block_for_get_request(self, channel: int, blkId: str) -> Optional[Block]:
-        """Returns the block corresponding to given block Id"""
+        """Returns the block corresponding to given block Id (used only when needing to forward block due to get request)."""
         return self.blockchain.get_block_from_hash(blkId)
 
     def hash_timeout(self, targetId: int, channel: int, blkId: str) -> Optional[Tuple[int, int]]:
+        """Process Timeout event and return which connection new get request should be scheduled to."""
         self.receivedHashes[blkId].active_senders.remove((targetId, channel))
 
         if Config.counter_measure:
@@ -187,22 +188,20 @@ class PeerNode:
         return self.receivedHashes[blkId].passive_senders[0]
 
     def get_all_senders(self, blkId: str) -> List[Tuple[int, int]]:
+        """Return all peers who sent given hash."""
         return map(lambda x: x[0], self.receivedHashes[blkId].all_senders)
     
     def get_connected_list(self, creatorId: int) -> List[Tuple[int, int]]:
+        """Get all connected peers."""
         return [(connectedPeerId, 1) for connectedPeerId in self.connectedPeers]
     
     def get_channel_details(self, connectedPeerId: int, channel: int) -> Tuple[int, int]:
+        """Get channel details."""
         return self.pij[connectedPeerId], self.cij[connectedPeerId]
 
     def add_block(self, block: Block, arrTime : float) -> Optional[str]:
         """
         Adds a new block to the blockchain, check for change in longest chain and updates the mempool.
-
-        Args:
-            block (Block): The new block to add.
-            arrTime (float): The time the block was received.
-
         Returns:
             Optional[str]: None.
         """
@@ -224,7 +223,6 @@ class PeerNode:
     def mining_check(self) -> bool:
         """
         Checks if mining was continued till the end of the event.
-
         Returns:
             bool: True if mining continued, False if it stoped.
         """
@@ -240,7 +238,6 @@ class PeerNode:
     def sample_transactions(self) -> List['Transaction']:
         """
         Selects valid transactions from the mempool based on account balances.
-
         Returns:
             List[Transaction]: A list of transactions that can be included in a new block.
         """

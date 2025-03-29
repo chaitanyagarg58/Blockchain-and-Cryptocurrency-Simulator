@@ -139,7 +139,7 @@ class BlockchainTree:
         Recursively deletes dangling blocks (due to parent being invalid).
 
         Args:
-            blockId (int): The ID of the parent block, whose dangling children are to be deleted
+            blockId (str): The ID of the parent block, whose dangling children are to be deleted
         """
         if blockId in self.danglingBlocksList:
             for childId in self.danglingBlocksList[blockId]:

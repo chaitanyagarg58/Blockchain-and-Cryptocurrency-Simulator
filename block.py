@@ -9,13 +9,15 @@ class Block:
 
     def __init__(self, creatorId: int, txns: List['Transaction'], parentBlockId: str, parentBlockBalance: Dict[int, int], depth: int, timestamp: float):
         """
+        Initializes a new block.
+
         Args:
-            creatorId (int): Miner ID.
-            txns (List[Transaction]): Transactions in a block
-            parentBlockId (str): ID of parent block
-            parentBlockBalance (Dict[int, int]): Balance snapshot before this block
-            depth (int): Block depth in the chain
-            timestamp (float): Timestamp included by miner in block (The time when miner starting mining, not when it was mined).
+            creatorId (int): Miner ID who created this block.
+            txns (List[Transaction]): Transactions included in this block.
+            parentBlockId (str): Hash ID of the parent block.
+            parentBlockBalance (Dict[int, int]): Balance snapshot just before this block.
+            depth (int): Depth of this block in the blockchain.
+            timestamp (float): Time when the miner started mining this block (not when it was mined).
         """
         self.creatorID = creatorId
         self.Txns = txns
@@ -51,6 +53,7 @@ class Block:
         return txns_hash[0]
 
     def __str__(self):
+        """Generates a string representation of the block, used for hashing."""
         blockString = f"{self.parentBlkID}|{self.timestamp}|{self.get_merkle_root()}|"
         for txn in self.Txns:
             blockString += f"|{str(txn)}"

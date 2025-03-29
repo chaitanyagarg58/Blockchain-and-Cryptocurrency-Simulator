@@ -12,7 +12,7 @@ from typing import List, Union
 
 class EventSimulator:
     def __init__(self, env: simpy.Environment, peers: List[Union[PeerNode, MaliciousNode, RingMasterNode]], block_interarrival_time: float, transaction_mean_time: float, timeout_time: float, sim_time: float):
-        """Initialize the simulator environment"""
+        """Initialize the event-driven blockchain simulator."""
         self.env = env
         self.peers = peers
         self.block_interarrival_time = block_interarrival_time
@@ -46,7 +46,7 @@ class EventSimulator:
 
 
     def process_event(self, event: Event):
-        """Process event based on its type"""
+        """Dispatch event to the appropriate handler."""
 
         if not self.soft_termination and self.last_update < self.env.now:
             self.progress_bar.update(self.env.now - self.last_update)
@@ -94,9 +94,11 @@ class EventSimulator:
     def process_block_generation(self, event: Event):
         """
         Process the block generation event.
-        
-        If the longest chain has changed since this event was scheduled, this event is terminated. (We would have starting working on another block)
-        Adds the block to the blockchain and propagated to connected peers.
+        Steps:
+        - Check if the longest chain has changed since scheduling; if so, discard the event.
+        - Add the newly generated block to the blockchain.
+        - Propagate the block hash to connected peers.
+        - Schedule the next block generation for this peer.
         """
         peerId = event.peerId
         block = event.block
@@ -127,6 +129,13 @@ class EventSimulator:
         self.env.process(self.schedule_event(event, delay=delay))
 
     def process_hash_propagation(self, event: Event):
+        """
+        Process hash propagation event.
+        Steps:
+        - Check if the peer has already seen the full block with this hash; if so, terminate early.
+        - Add the hash to the peer's knowledge base, tracking sender and channel.
+        - On Response, from the Protocol logic for hash processing, schedule a GET request to retrieve the full block.
+        """
         peerId = event.peerId
         if self.peers[peerId].block_seen(event.blkId):
             return
@@ -152,6 +161,13 @@ class EventSimulator:
         self.peers[senderId].scheduled_get(receiverId, channel, blkId)
 
     def process_get_request(self, event: Event):
+        """
+        Process GET request event.
+        Steps:
+        - Retrieve the requested block from the peer's storage.
+        - Block maybe not be returned, due to peer with-holding full block, due to eclipse attack. 
+        - If the block is found, schedule its propagation to the requesting peer.
+        """
         peerId = event.peerId
         block = self.peers[peerId].get_block_for_get_request(event.channel, event.blkId)
         if block is not None:
@@ -168,6 +184,13 @@ class EventSimulator:
         self.env.process(self.schedule_event(event, delay=self.timeout_time))
 
     def process_timeout_event(self, event: Event):
+        """
+        Process timeout event.
+        Steps:
+        - Check if the block has already been seen; if so, terminate early.
+        - If the peer still expects the block, determine the next peer to query.
+        - Schedule a GET request to retrieve the block from the next peer.
+        """
         peerId = event.peerId
         if self.peers[peerId].block_seen(event.blkId):
             return
@@ -182,7 +205,7 @@ class EventSimulator:
     ###############################################
     ## BROADCAST Event Starts
     def schedule_broadcast_privatechain(self, channel: int, senderId: int, receiverId: int, blkId: str):
-        """Schedules the timeout event of the block hash for peerId."""
+        """Schedules the broadcast privatechain event for the block id for given peer."""
         pij, cij = self.peers[senderId].get_channel_details(receiverId, channel)
         dij = random.expovariate(lambd=cij/96)
         delay = pij + Block.hashSize / cij  + dij ## Size considered same as hash size
@@ -192,6 +215,14 @@ class EventSimulator:
         self.env.process(self.schedule_event(event, delay=delay))
 
     def process_broadcast_privatechain(self, event: Event):
+        """
+        Process broadcast of private chain event.
+        Steps:
+        - Check if the broadcast has already been seen; if so, terminate early.
+        - Retrieve the private chain associated/ending with the given block ID.
+        - Broadcast the private chain to connected peers, except the sender.
+        - Propagate each block hash in the private chain to public peers.
+        """
         peerId = event.peerId
         if self.peers[peerId].broadcast_seen(event.blkId):
             return
@@ -225,12 +256,14 @@ class EventSimulator:
 
     def process_block_propagation(self, event: Event):
         """
-        Processes the block propagation event.
-
-        Checks if the block has been seen before for correct loopless forwarding implementation.
-        Verifies and adds the block to the blockchain.
-        If the longest chain is changed as a consequence of this block, we schedule block generation on the longest chain for this Peer.
-        Propagate this event to connected peer. (Loopless forwarding)
+        Process block propagation event.
+        Steps:
+        - Mark the block as received from the sender.
+        - If the block has already been seen, terminate early.
+        - Add the block to the blockchain.
+        - If (Only For RingMasterNode) needed, Process Broadcast Private Chain Event.
+        - If the longest chain changes, schedule new block generation.
+        - Propagate the block hash to connected peers (loopless forwarding).
         """
         peerId = event.peerId
 
@@ -268,9 +301,13 @@ class EventSimulator:
 
     def process_transaction_generation(self, event: Event):
         """
-        Process the transaction generation event.
-
-        Creates a valid transaction, adds it to mempool, and propagates to connected peers.
+        Process transaction generation event.
+        Steps:
+        - Ensure peer has a valid balance to create a transaction.
+        - Select a random receiver and amount.
+        - Create the transaction and add it to the mempool.
+        - Propagate the transaction to connected peers.
+        - Schedule the next transaction generation event.
         """
         peerId = event.peerId
         currentBalance = self.peers[peerId].get_lastBlk().peerBalance[peerId]
@@ -306,12 +343,12 @@ class EventSimulator:
 
     def process_transaction_propagation(self, event: Event):
         """
-        Processes the transaction propagation event.
-
-        Checks if the transaction has been seen before for correct loopless forwarding implementation.
-        Transaction is not verified here, as the creator might be not a different branch of the tree (hence have different balance).
-        Transaction is verified while adding to a block.
-        Propagates transaction to connected peers. (Loopless forwarding)
+        Process the transaction propagation event.
+        Steps:
+        - Check if the transaction has already been seen; if so, terminate early.
+        - Transaction is not verified here, as the creator might be not a different branch of the tree (hence have different balance).
+        - Add the transaction to the mempool.
+        - Propagate the transaction to connected peers (loopless forwarding).
         """
         peerId = event.peerId
         if self.peers[peerId].transaction_seen(event.transaction):
@@ -329,6 +366,14 @@ class EventSimulator:
     ############################################
 
     def finalize_event(self, event: Event):
+        """
+        Process the finalization event.
+        Steps:
+        - Set the soft termination flag to prevent further unauthorized event processing.
+        - Retrieve the last private block from the malicious ringmaster.
+        - If no private block exists, terminate early.
+        - Broadcast the last private block to all peers.
+        """
         self.soft_termination = True
         broadcast_block = self.peers[MaliciousNode.RingmasterId].get_last_private_block()
         if broadcast_block is None:

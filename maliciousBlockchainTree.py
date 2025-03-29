@@ -18,27 +18,33 @@ class MaliciousBlockchainTree(BlockchainTree):
         self.seenBroadcasts = set()
 
     def add_selfish_block(self, block: Block, arrTime: float):
+        """Adds selfish block to private chain."""
         self.privateChain.append((block, arrTime))
         self.privateChain.sort(key=lambda x: x[0].depth)
 
     def check_broadcast(self, blkId: str) -> bool:
+        """Checks if broadcast message has been seen."""
         return blkId in self.seenBroadcasts
     
     def check_block(self, blkId: str) -> bool:
+        """Checks if block with given id has been seen."""
         return super().check_block(blkId) or (blkId in map(lambda x: x[0].blkId, self.privateChain))
     
     def get_block_from_hash(self, blkId: str) -> Block:
+        """Get block from hash. (No with-holding)."""
         block = next((block for block, _ in self.privateChain if block.blkId == blkId), None)
         if block is None:
             block = super().get_block_from_hash(blkId)
         return block
 
     def get_last_private_block(self) -> Optional[Block]:
+        """Get last private block."""
         if len(self.privateChain) == 0:
             return None
         return self.privateChain[-1][0]
 
     def get_private_chain(self, blkId: str) -> List[Tuple[Block, float]]:
+        """Return complete private chain ending in given block Id."""
         self.seenBroadcasts.add(blkId)
 
         ret = []
