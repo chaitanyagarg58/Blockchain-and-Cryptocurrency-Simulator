@@ -229,7 +229,7 @@ class PeerNode:
 
         if self.miningBlkId is None:
             return True
-        return self.miningBlkId != self.blockchain.longestChainTip
+        return self.miningBlkId != self.get_lastBlk().blkId
 
     def get_lastBlk(self) -> Block:
         """Returns the last block in the longest chain."""
