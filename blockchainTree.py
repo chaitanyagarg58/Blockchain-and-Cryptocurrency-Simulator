@@ -82,8 +82,7 @@ class BlockchainTree:
         self.children[block.parentBlkID].append(block.blkId)
 
         ## Switch Longest Chain if applicable
-        if self.seenBlocks[self.longestChainTip].depth < block.depth:
-            self.longestChainTip = block.blkId
+        self.update_longest_chain(block)
 
         ## Recursive addition of Dangling Blocks
         if block.blkId in self.danglingBlocksList:
@@ -124,15 +123,20 @@ class BlockchainTree:
 
         ### TODO add code for branch switching->Done
         self.prevChainTip = self.longestChainTip
-        if self.seenBlocks[self.longestChainTip].depth < block.depth:
-            self.longestChainTip = block.blkId
+        self.update_longest_chain(block)
 
         ## Recursive addition of Dangling Blocks
         if block.blkId in self.danglingBlocksList:
             for childId in self.danglingBlocksList[block.blkId]:
                 self.add_dangling_block(self.seenBlocks[childId])
             del self.danglingBlocksList[block.blkId]
-            
+
+
+    def update_longest_chain(self, block: Block):
+        """Update the longest chain of blockchain tree."""
+        if self.seenBlocks[self.longestChainTip].depth < block.depth:
+            self.longestChainTip = block.blkId
+
 
     def recursive_deletion(self, blockId: str):
         """

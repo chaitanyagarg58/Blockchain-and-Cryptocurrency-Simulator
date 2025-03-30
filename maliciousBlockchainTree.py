@@ -4,7 +4,7 @@ from typing import List, Tuple, Optional
 
 
 class MaliciousBlockchainTree(BlockchainTree):
-    def __init__(self, genesisBlock: Block):
+    def __init__(self, genesisBlock: Block, ringMasterId: int):
         """
         Initializes the blockchain tree with the genesis block
 
@@ -12,6 +12,7 @@ class MaliciousBlockchainTree(BlockchainTree):
             genesisBlock (Block): The genesis Block.
         """
         super().__init__(genesisBlock)
+        self.ringMasterId = ringMasterId
 
         self.privateChain: List[Tuple[Block, float]] = []
 
@@ -29,7 +30,15 @@ class MaliciousBlockchainTree(BlockchainTree):
     def check_block(self, blkId: str) -> bool:
         """Checks if block with given id has been seen."""
         return super().check_block(blkId) or (blkId in map(lambda x: x[0].blkId, self.privateChain))
-    
+
+    def update_longest_chain(self, block: Block):
+        """Update the longest chain of blockchain tree."""
+        if self.seenBlocks[self.longestChainTip].depth < block.depth:
+            self.longestChainTip = block.blkId
+        elif self.seenBlocks[self.longestChainTip].depth == block.depth:
+            if block.creatorID == self.ringMasterId:
+                self.longestChainTip = block.blkId
+
     def get_block_from_hash(self, blkId: str) -> Block:
         """Get block from hash. (No with-holding)."""
         block = next((block for block, _ in self.privateChain if block.blkId == blkId), None)

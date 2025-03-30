@@ -21,7 +21,7 @@ class MaliciousNode(PeerNode):
         """
         super().__init__(peerId, netType, cpuType, hashingPower, genesisBlock)
 
-        self.blockchain = MaliciousBlockchainTree(genesisBlock)
+        self.blockchain = MaliciousBlockchainTree(genesisBlock, MaliciousNode.RingmasterId)
         self.overlay_connectedPeers = []
         self.overlay_pij = {}
         self.overlay_cij = {}
@@ -109,6 +109,8 @@ class RingMasterNode(MaliciousNode):
         """
         super().__init__(peerId, netType, cpuType, hashingPower, genesisBlock)
 
+        self.honest_depth = genesisBlock.depth
+
     def get_lastBlk(self) -> Block:
         """Returns the last block in the longest chain."""
         honest = self.blockchain.get_lastBlock()
@@ -131,9 +133,13 @@ class RingMasterNode(MaliciousNode):
         
 
         super().add_block(block, arrTime)
-        honest_block = self.blockchain.get_lastBlock()
+
         private_block = self.blockchain.get_last_private_block()
-        if private_block is None or private_block.depth > honest_block.depth + 1:
+
+        if self.honest_depth < block.depth:
+            self.honest_depth = block.depth
+
+        if private_block is None or private_block.depth > self.honest_depth + 1:
             return None
         
         return private_block.blkId

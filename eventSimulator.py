@@ -106,7 +106,11 @@ class EventSimulator:
         if self.peers[peerId].get_lastBlk().blkId != block.parentBlkID:
             return
 
-        self.peers[peerId].add_block(block, self.env.now)
+        broadcast_blkId = self.peers[peerId].add_block(block, self.env.now)
+        if broadcast_blkId is not None:
+            self_broadcast = Event(EventType.BROADCAST_PRIVATECHAIN, None, self.env.now, peerId, peerId, blkId=broadcast_blkId)
+            self.process_broadcast_privatechain(self_broadcast)
+
 
         for connectedPeerId, channel in self.peers[peerId].get_connected_list(block.creatorID):
             self.schedule_hash_propagation(channel, peerId, connectedPeerId, block.blkId)

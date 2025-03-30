@@ -10,12 +10,12 @@ from config import Config
 import os
 from typing import List, Union
 
-def logger(peers: List[Union[PeerNode, MaliciousNode]], graph: ntxGraph, overlay_graph: ntxGraph, folder: str):
+def logger(peers: List[Union[PeerNode, MaliciousNode, RingMasterNode]], graph: ntxGraph, overlay_graph: ntxGraph, folder: str):
     """
     Saves the blockchain tree of each peer to the specified folder.
     
     Args:
-        peers (List[Union[PeerNode, MaliciousNode]]): List of PeerNode/MaliciousNode objects.
+        peers (List[Union[PeerNode, MaliciousNode, RingMasterNode]]): List of PeerNode/MaliciousNode/RingMasterNode objects.
         graph (ntxGraph): Network Topology Graph
         overlay_graph (ntxGraph): Overlay Network Topology Graph
         folder (str): Folder path where the trees will be saved.
@@ -81,13 +81,13 @@ if __name__ == "__main__":
     Block.peerIds = list(range(num_peers))
     genesis_block = Block(creatorId=-1, txns=[], parentBlockId="-1", parentBlockBalance=None, depth=0, timestamp=0)
 
+    MaliciousNode.RingmasterId = 0
+
     # Create peers with unique IDs and properties
     malicious_peers =  [RingMasterNode(0, netTypes[0], cpuTypes[0], sum(hashingPowers[:num_malicious]), genesis_block)] + \
                     [MaliciousNode(id, netTypes[id], cpuTypes[id], 0, genesis_block) for id in range(1, num_malicious)]
     honest_peers = [PeerNode(id, netTypes[id], cpuTypes[id], hashingPowers[id], genesis_block) for id in range(num_malicious, num_peers)]
     peers = malicious_peers + honest_peers
-
-    MaliciousNode.RingmasterId = 0
 
     # Generate Public Network Topology
     Graph = create_network(num_malicious, num_honest, f"{folder_to_store}/networkGraph.png")
