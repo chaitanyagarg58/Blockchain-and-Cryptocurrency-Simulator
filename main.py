@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     if folder_to_store is None:
         folder_to_store = "."
-        folder_to_store = f"logs_{num_honest}_{num_malicious}_{int(timeout_time * 1000)}_{int(transaction_interarrival_time * 1000)}_{int(block_interarrival_time * 1000)}_{int(sim_time)}"
+        folder_to_store = f"logs_{num_honest}_{num_malicious}_{int(timeout_time * 1000)}_{int(transaction_interarrival_time * 1000)}_{int(block_interarrival_time * 1000)}_{int(sim_time)}_{Config.remove_eclipse}_{Config.counter_measure}"
 
     os.makedirs(folder_to_store, exist_ok=True)
 
