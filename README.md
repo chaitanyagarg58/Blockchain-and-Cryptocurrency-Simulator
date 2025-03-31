@@ -30,17 +30,17 @@ The simulator can be run using main.py.
 
 ```
 $ python3 main.py --help
-usage: main.py [-h] -n NUM_HONEST -m NUM_MALICIOUS -o TIMEOUT -t TRANSACTION_INTERARRIVAL -b BLOCK_INTERARRIVAL -s
+usage: main.py [-h] -n NUM_PEERS -m RATIO_MALICIOUS -o TIMEOUT -t TRANSACTION_INTERARRIVAL -b BLOCK_INTERARRIVAL -s
                SIM_TIME [-f FOLDER] [-r] [-c]
 
 Process CLI Inputs.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -n NUM_HONEST, --num_honest NUM_HONEST
-                        Number of Honest Peers
-  -m NUM_MALICIOUS, --num_malicious NUM_MALICIOUS
-                        Number of Malicious Peers
+  -n NUM_PEERS, --num_peers NUM_PEERS
+                        Total Number of Peers
+  -m RATIO_MALICIOUS, --ratio_malicious RATIO_MALICIOUS
+                        Fraction of Malicious Peers
   -o TIMEOUT, --timeout TIMEOUT
                         Timeout Time (seconds)
   -t TRANSACTION_INTERARRIVAL, --transaction_interarrival TRANSACTION_INTERARRIVAL

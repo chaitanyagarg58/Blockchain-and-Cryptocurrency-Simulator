@@ -2,15 +2,16 @@ import networkx as ntx
 import random 
 import time
 import matplotlib.pyplot as plt
+from typing import List
 
 
-def create_network(num_of_malicious: int, num_of_honest: int, filepath: str, min_degree: int = 3, max_degree: int = 6) -> ntx.Graph:
+def create_network(malicious_nodes: List[int], honest_nodes: List[int], filepath: str, min_degree: int = 3, max_degree: int = 6) -> ntx.Graph:
     """
     Creates a random network with specified node count and degree constraints.
 
     Args:
-        num_of_malicious (int): Number of malicious nodes in the network.
-        num_of_honest (int): Number of honest nodes in the network.
+        malicious_nodes (List[int]): List of malicious nodes in the network.
+        honest_nodes (List[int]): List of honest nodes in the network.
         filepath (str): File path to save the network graph.
         min_degree (int): Minimum degree for each node.
         max_degree (int): Maximum degree for each node.
@@ -18,7 +19,8 @@ def create_network(num_of_malicious: int, num_of_honest: int, filepath: str, min
     Returns:
         Graph: A connected random graph with the specified properties.
     """
-    num_of_nodes = num_of_honest + num_of_malicious
+    node_ids = malicious_nodes + honest_nodes
+    num_of_nodes = len(node_ids)
 
     if num_of_nodes <= max_degree: 
         max_degree = num_of_nodes - 1
@@ -38,8 +40,10 @@ def create_network(num_of_malicious: int, num_of_honest: int, filepath: str, min
         else:
             Graph = None
             continue
+        
+    Graph = ntx.relabel_nodes(Graph, node_ids.__getitem__)
 
-    node_colors = ['black' if i < num_of_malicious else 'blue' for i in range(num_of_nodes)]
+    node_colors = ['black' if node in malicious_nodes else 'blue' for node in Graph.nodes()]
     ntx.draw(Graph, with_labels=True, node_color=node_colors, edge_color='gray', font_color="yellow")
     plt.savefig(filepath)
     plt.clf()
