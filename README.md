@@ -12,5 +12,7 @@ This repository contains assignment work from the course **CS765: Introduction t
   - Malicious Nodes executing Selfish Mining and Eclipse Attack.
   - Counter Measure to Eclipse Attack.
 
+- **Assignment-3:**
+  A Solidity Simulartor for Decentralized Exchange using constant product AMM. Also shows Arbitrage across multiple such DEX with different exchange rate.
 
 Detailed usage instructions and analysis can be found in the README and report files within their respective assignment directories.
